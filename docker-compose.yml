@@ -1,0 +1,77 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: pair_helper
+      POSTGRES_USER: pair_user
+      POSTGRES_PASSWORD: pair_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pair_user -d pair_helper"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment:
+      - DATABASE_URL=postgresql://admin:Passw0rd@192.168.2.228:5432/pair_helper
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - SECRET_KEY=${SECRET_KEY}
+      - TELEGRAM_WEBAPP_URL=${TELEGRAM_WEBAPP_URL}
+    volumes:
+      - ./backend:/app
+    ports:
+      - "8000:8000"
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  bot:
+    build:
+      context: ./bot
+      dockerfile: Dockerfile
+    environment:
+      - DATABASE_URL=postgresql://admin:Passw0rd@192.168.2.228:5432/pair_helper
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - API_BASE_URL=http://backend:8000
+    volumes:
+      - ./bot:/app
+    depends_on:
+      - backend
+    command: python main.py
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    ports:
+      - "3000:3000"
+    environment:
+      - VITE_API_BASE_URL=http://localhost:8000
+    command: npm run dev
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./nginx/ssl:/etc/nginx/ssl
+    depends_on:
+      - backend
+      - frontend
+    profiles:
+      - production
+
+volumes:
+  postgres_data:

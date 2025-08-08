@@ -1,0 +1,246 @@
+:root {
+  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+
+  color-scheme: light dark;
+  color: rgba(255, 255, 255, 0.87);
+  background-color: #242424;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-text-size-adjust: 100%;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  display: flex;
+  place-items: center;
+  min-width: 320px;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+#root {
+  width: 100%;
+  height: 100vh;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 2rem;
+  text-align: center;
+}
+
+/* Telegram Web App стили */
+.tg-app {
+  background: var(--tg-theme-bg-color, #ffffff);
+  color: var(--tg-theme-text-color, #000000);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.tg-button {
+  background: var(--tg-theme-button-color, #2481cc);
+  color: var(--tg-theme-button-text-color, #ffffff);
+  border: none;
+  border-radius: 8px;
+  padding: 12px 16px;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.tg-button:hover {
+  opacity: 0.8;
+}
+
+.tg-button:active {
+  opacity: 0.6;
+}
+
+/* Компоненты */
+.card {
+  background: var(--tg-theme-secondary-bg-color, #f8f9fa);
+  border-radius: 12px;
+  padding: 20px;
+  margin: 12px 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.container {
+  max-width: 400px;
+  margin: 0 auto;
+  padding: 16px;
+}
+
+.header {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.header h1 {
+  font-size: 24px;
+  font-weight: 600;
+  margin: 0 0 8px 0;
+  color: var(--tg-theme-text-color, #000000);
+}
+
+.header p {
+  font-size: 14px;
+  color: var(--tg-theme-hint-color, #999999);
+  margin: 0;
+}
+
+.form-group {
+  margin-bottom: 16px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 500;
+  color: var(--tg-theme-text-color, #000000);
+}
+
+.form-group input,
+.form-group textarea {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid var(--tg-theme-hint-color, #e0e0e0);
+  border-radius: 8px;
+  font-size: 16px;
+  background: var(--tg-theme-bg-color, #ffffff);
+  color: var(--tg-theme-text-color, #000000);
+}
+
+.form-group textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+.btn {
+  width: 100%;
+  padding: 12px 16px;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-primary {
+  background: var(--tg-theme-button-color, #2481cc);
+  color: var(--tg-theme-button-text-color, #ffffff);
+}
+
+.btn-secondary {
+  background: var(--tg-theme-secondary-bg-color, #f8f9fa);
+  color: var(--tg-theme-text-color, #000000);
+  border: 1px solid var(--tg-theme-hint-color, #e0e0e0);
+}
+
+.btn:hover {
+  opacity: 0.8;
+}
+
+.btn:active {
+  opacity: 0.6;
+}
+
+/* Навигация */
+.nav {
+  display: flex;
+  justify-content: space-around;
+  padding: 16px;
+  background: var(--tg-theme-bg-color, #ffffff);
+  border-bottom: 1px solid var(--tg-theme-hint-color, #e0e0e0);
+}
+
+.nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.nav-item:hover {
+  background: var(--tg-theme-secondary-bg-color, #f8f9fa);
+}
+
+.nav-item.active {
+  background: var(--tg-theme-button-color, #2481cc);
+  color: var(--tg-theme-button-text-color, #ffffff);
+}
+
+.nav-icon {
+  font-size: 20px;
+  margin-bottom: 4px;
+}
+
+.nav-text {
+  font-size: 12px;
+}
+
+/* Настроения */
+.mood-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin: 16px 0;
+}
+
+.mood-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 16px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: var(--tg-theme-secondary-bg-color, #f8f9fa);
+}
+
+.mood-item:hover {
+  background: var(--tg-theme-hint-color, #e0e0e0);
+}
+
+.mood-item.selected {
+  background: var(--tg-theme-button-color, #2481cc);
+  color: var(--tg-theme-button-text-color, #ffffff);
+}
+
+.mood-emoji {
+  font-size: 32px;
+  margin-bottom: 8px;
+}
+
+.mood-text {
+  font-size: 12px;
+  text-align: center;
+}
+
+/* Утилиты */
+.text-center {
+  text-align: center;
+}
+
+.mt-16 {
+  margin-top: 16px;
+}
+
+.mb-16 {
+  margin-bottom: 16px;
+}
+
+.hidden {
+  display: none;
+}
