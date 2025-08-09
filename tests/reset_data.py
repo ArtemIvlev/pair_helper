@@ -1,7 +1,11 @@
 #!/usr/bin/env python3
 """
 Скрипт для очистки данных в базе данных Pair Helper
-Удаляет всех пользователей, пары, приглашения и другие данные
+Удаляет только пользовательские данные (пользователи, их пары и все связанные записи),
+НЕ трогая справочники (вопросы и др.). Можно исключить некоторых пользователей по Telegram ID.
+
+Переменные окружения (опционально):
+  - EXCLUDE_TG_IDS: comma-separated список Telegram ID, которых НЕ удалять (например: "123,456")
 """
 
 import requests
@@ -154,9 +158,15 @@ def execute_sql_command(token, endpoint_id, sql_command):
         return False
 
 def reset_database():
-    """Очищает все данные в базе данных"""
-    print("🗑️  Очистка данных Pair Helper...")
+    """Очищает только пользовательские данные в базе данных"""
+    print("🧹 Очистка пользовательских данных Pair Helper...")
     print("=" * 60)
+    
+    # Исключения по Telegram ID
+    exclude_raw = os.getenv("EXCLUDE_TG_IDS", "").strip()
+    exclude_list = [x.strip() for x in exclude_raw.split(",") if x.strip()]
+    print(f"🚫 Исключаем Telegram ID: {', '.join(exclude_list) if exclude_list else '—'}")
+    exclude_sql = ",".join([f"'{x}'" for x in exclude_list]) or "''"
     
     # Получаем токен
     token = get_portainer_token()
@@ -168,25 +178,89 @@ def reset_database():
     if not endpoint_id:
         return False
     
-    # Универсальная очистка: TRUNCATE всех таблиц public (кроме служебных),
-    # сброс идентификаторов и каскад для внешних ключей
-    sql_commands = [
-        r"""
+    # Таргетированная очистка: удаляем только данные пользователей и их пар
+    sql_commands = [f"""
+BEGIN;
+
+-- Пользователи к удалению (по telegram_id, исключая явно указанных)
+CREATE TEMP TABLE tmp_victim_users AS
+  SELECT id FROM users
+  WHERE COALESCE(telegram_id::text, '') NOT IN ({exclude_sql});
+
+-- Пары, связанные с этими пользователями
+CREATE TEMP TABLE tmp_victim_pairs AS
+  SELECT id FROM pairs
+  WHERE user1_id IN (SELECT id FROM tmp_victim_users)
+     OR user2_id IN (SELECT id FROM tmp_victim_users);
+
+-- Удаляем данные, зависящие от пользователя
 DO $$
-DECLARE r record;
 BEGIN
-  FOR r IN 
-    SELECT tablename 
-    FROM pg_tables 
-    WHERE schemaname = 'public' 
-      AND tablename NOT IN ('alembic_version')
-  LOOP
-    EXECUTE 'TRUNCATE TABLE ' || quote_ident(r.tablename) || ' RESTART IDENTITY CASCADE';
-  END LOOP;
-END
-$$;
-"""
-    ]
+  BEGIN
+    EXECUTE 'DELETE FROM user_answers WHERE user_id IN (SELECT id FROM tmp_victim_users)';
+  EXCEPTION WHEN undefined_table THEN NULL; END;
+
+  BEGIN
+    EXECUTE 'DELETE FROM user_question_status WHERE user_id IN (SELECT id FROM tmp_victim_users)';
+  EXCEPTION WHEN undefined_table THEN NULL; END;
+
+  BEGIN
+    EXECUTE 'DELETE FROM mood_entries WHERE user_id IN (SELECT id FROM tmp_victim_users)';
+  EXCEPTION WHEN undefined_table THEN NULL; END;
+
+  BEGIN
+    EXECUTE 'DELETE FROM appreciations WHERE user_id IN (SELECT id FROM tmp_victim_users)';
+  EXCEPTION WHEN undefined_table THEN NULL; END;
+
+  BEGIN
+    EXECUTE 'DELETE FROM ritual_checks WHERE user_id IN (SELECT id FROM tmp_victim_users)';
+  EXCEPTION WHEN undefined_table THEN NULL; END;
+
+  BEGIN
+    EXECUTE 'DELETE FROM calendar_events WHERE user_id IN (SELECT id FROM tmp_victim_users)';
+  EXCEPTION WHEN undefined_table THEN NULL; END;
+
+  BEGIN
+    EXECUTE 'DELETE FROM female_cycle_logs WHERE user_id IN (SELECT id FROM tmp_victim_users)';
+  EXCEPTION WHEN undefined_table THEN NULL; END;
+
+  BEGIN
+    EXECUTE 'DELETE FROM female_cycle WHERE user_id IN (SELECT id FROM tmp_victim_users)';
+  EXCEPTION WHEN undefined_table THEN NULL; END;
+
+  BEGIN
+    EXECUTE 'DELETE FROM emotion_notes WHERE user_id IN (SELECT id FROM tmp_victim_users)';
+  EXCEPTION WHEN undefined_table THEN NULL; END;
+
+  BEGIN
+    EXECUTE 'DELETE FROM invitations WHERE inviter_id IN (SELECT id FROM tmp_victim_users)';
+  EXCEPTION WHEN undefined_table THEN NULL; END;
+END$$;
+
+-- Удаляем данные, зависящие от пары
+DO $$
+BEGIN
+  BEGIN
+    EXECUTE 'DELETE FROM pair_daily_questions WHERE pair_id IN (SELECT id FROM tmp_victim_pairs)';
+  EXCEPTION WHEN undefined_table THEN NULL; END;
+
+  BEGIN
+    EXECUTE 'DELETE FROM rituals WHERE pair_id IN (SELECT id FROM tmp_victim_pairs)';
+  EXCEPTION WHEN undefined_table THEN NULL; END;
+END$$;
+
+-- Удаляем пары
+DELETE FROM pairs WHERE id IN (SELECT id FROM tmp_victim_pairs);
+
+-- И только после этого удаляем пользователей
+DELETE FROM users WHERE id IN (SELECT id FROM tmp_victim_users);
+
+-- Чистим временные таблицы
+DROP TABLE IF EXISTS tmp_victim_pairs;
+DROP TABLE IF EXISTS tmp_victim_users;
+
+COMMIT;
+"""]
     
     print("🧹 Выполняем очистку данных...")
     
@@ -196,17 +270,16 @@ $$;
             print(f"❌ Ошибка при выполнении команды {i}")
             return False
     
-    print("\n✅ Очистка данных завершена успешно!")
-    print("📊 База данных полностью очищена")
-    print("🔄 Все последовательности сброшены")
+    print("\n✅ Очистка пользовательских данных завершена успешно!")
+    print("📊 Справочники и системные таблицы не тронуты")
     
     return True
 
 if __name__ == "__main__":
-    print("🗑️  Скрипт очистки данных Pair Helper")
+    print("🗑️  Скрипт очистки пользовательских данных Pair Helper")
     print("=" * 60)
-    print("⚠️  ВНИМАНИЕ: Этот скрипт удалит ВСЕ данные!")
-    print("   Пользователи, пары, приглашения, записи - всё будет удалено!")
+    print("⚠️  ВНИМАНИЕ: Этот скрипт удалит ПОЛЬЗОВАТЕЛЬСКИЕ данные (пользователи, пары, ответы и т.п.)")
+    print("   Справочники (например, вопросы) не затрагиваются.")
     print()
     
     confirm = input("🤔 Вы уверены, что хотите продолжить? (yes/no): ")
