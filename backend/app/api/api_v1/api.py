@@ -2,7 +2,6 @@ from fastapi import APIRouter
 
 from app.api.api_v1.endpoints import (
     pair,
-    daily_question,
     questions,
     mood,
     ritual,
@@ -19,7 +18,6 @@ from app.api.api_v1.endpoints import (
 api_router = APIRouter()
 
 api_router.include_router(pair.router, prefix="/pair", tags=["pair"])
-api_router.include_router(daily_question.router, prefix="/question", tags=["daily_question"])
 api_router.include_router(questions.router, prefix="/questions", tags=["questions"])
 api_router.include_router(mood.router, prefix="/mood", tags=["mood"])
 api_router.include_router(ritual.router, prefix="/rituals", tags=["ritual"])

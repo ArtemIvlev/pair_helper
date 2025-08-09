@@ -1,7 +1,6 @@
 from app.core.database import Base
 from .user import User
 from .pair import Pair, PairInvite
-from .daily_question import DailyQuestion, Answer
 from .question import Question, UserAnswer, UserQuestionStatus, PairDailyQuestion
 from .mood import Mood, Appreciation
 from .ritual import Ritual, RitualCheck
@@ -15,8 +14,6 @@ __all__ = [
     "User",
     "Pair", 
     "PairInvite",
-    "DailyQuestion",
-    "Answer",
     "Question",
     "UserAnswer",
     "UserQuestionStatus",

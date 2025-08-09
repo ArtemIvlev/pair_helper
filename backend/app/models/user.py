@@ -21,7 +21,7 @@ class User(Base):
     pairs_as_user1 = relationship("Pair", foreign_keys="Pair.user1_id", back_populates="user1")
     pairs_as_user2 = relationship("Pair", foreign_keys="Pair.user2_id", back_populates="user2")
     pair_invites = relationship("PairInvite", back_populates="owner")
-    answers = relationship("Answer", back_populates="user")
+
     moods = relationship("Mood", back_populates="user")
     appreciations = relationship("Appreciation", back_populates="user")
     ritual_checks = relationship("RitualCheck", back_populates="user")
