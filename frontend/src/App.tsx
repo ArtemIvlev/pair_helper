@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom'
 import './App.css'
 
 // Компоненты
@@ -52,6 +52,7 @@ function App() {
   const [registeredUser, setRegisteredUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [isFullscreen, setIsFullscreen] = useState(false)
+  const [navigateToQuestion, setNavigateToQuestion] = useState(false)
 
   useEffect(() => {
     // Проверяем, запущено ли приложение в Telegram
@@ -86,14 +87,30 @@ function App() {
         const userData = await response.json()
         setRegisteredUser(userData)
         
-        // Проверяем, есть ли параметр invite в URL или startapp от Telegram
+        // Проверяем параметры URL и startapp от Telegram
         const urlParams = new URLSearchParams(window.location.search)
-        const inviteCode = urlParams.get('invite') || urlParams.get('tgWebAppStartParam')?.replace('invite_', '')
+        const startParam = urlParams.get('tgWebAppStartParam') || ''
+        
+        // Проверяем диплинк на приглашение
+        const directInviteCode = urlParams.get('invite')
+        const startAppInviteCode = startParam.startsWith('invite_') ? startParam.replace('invite_', '') : null
+        const inviteCode = directInviteCode || startAppInviteCode
         
         if (inviteCode) {
           console.log('Обнаружен код приглашения:', inviteCode)
           // Автоматически используем приглашение для уже зарегистрированного пользователя
           await useInvitation(inviteCode, telegramId)
+        }
+
+        // Проверяем диплинк на страницу вопросов
+        const directQuestionParam = urlParams.get('question')
+        const startAppQuestionParam = startParam.startsWith('question_') ? startParam.replace('question_', '') : null
+        const questionParam = directQuestionParam || startAppQuestionParam
+        
+        if (questionParam === 'daily') {
+          console.log('Обнаружен диплинк на вопрос дня')
+          // Сохраняем намерение перехода на вопросы после загрузки
+          setNavigateToQuestion(true)
         }
       }
       // Если пользователь не найден (404), он не зарегистрирован
@@ -185,17 +202,46 @@ function App() {
   // Если пользователь зарегистрирован, показываем основное приложение
   return (
     <Router>
-      <div className={`tg-app ${isFullscreen ? 'fullscreen' : 'embedded'}`}>
-        <Routes>
-          <Route path="/pulse_of_pair/" element={<Home user={registeredUser} />} />
-          <Route path="/pulse_of_pair/question" element={<DailyQuestion />} />
-          <Route path="/pulse_of_pair/mood" element={<Mood />} />
-          <Route path="/pulse_of_pair/settings" element={<Settings user={registeredUser} />} />
-          <Route path="*" element={<Navigate to="/pulse_of_pair/" replace />} />
-        </Routes>
-        <Navigation />
-      </div>
+      <AppContent 
+        user={registeredUser} 
+        isFullscreen={isFullscreen}
+        navigateToQuestion={navigateToQuestion}
+        setNavigateToQuestion={setNavigateToQuestion}
+      />
     </Router>
+  )
+}
+
+// Компонент содержимого приложения с доступом к навигации
+interface AppContentProps {
+  user: any
+  isFullscreen: boolean
+  navigateToQuestion: boolean
+  setNavigateToQuestion: (value: boolean) => void
+}
+
+function AppContent({ user, isFullscreen, navigateToQuestion, setNavigateToQuestion }: AppContentProps) {
+  const navigate = useNavigate()
+
+  useEffect(() => {
+    if (navigateToQuestion) {
+      console.log('Переходим на страницу вопросов по диплинку')
+      navigate('/pulse_of_pair/question')
+      setNavigateToQuestion(false) // Сбрасываем флаг
+    }
+  }, [navigateToQuestion, navigate, setNavigateToQuestion])
+
+  return (
+    <div className={`tg-app ${isFullscreen ? 'fullscreen' : 'embedded'}`}>
+      <Routes>
+        <Route path="/pulse_of_pair/" element={<Home user={user} />} />
+        <Route path="/pulse_of_pair/question" element={<DailyQuestion />} />
+        <Route path="/pulse_of_pair/mood" element={<Mood />} />
+        <Route path="/pulse_of_pair/settings" element={<Settings user={user} />} />
+        <Route path="*" element={<Navigate to="/pulse_of_pair/" replace />} />
+      </Routes>
+      <Navigation />
+    </div>
   )
 }
 

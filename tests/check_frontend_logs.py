@@ -163,6 +163,14 @@ def main():
     print("-" * 60)
     logs = get_container_logs(base_url, token, endpoint_id, container_id, lines=200)
     print(logs)
+    # Явно печатаем признак для парсинга в build.sh
+    try:
+        import os
+        marker = os.environ.get('BUILD_MARKER', '')
+        if marker and marker in logs:
+            print(f"FOUND_BUILD_MARKER:{marker}")
+    except Exception:
+        pass
     print("-" * 60)
     
     print("✅ Просмотр логов завершен!")

@@ -75,51 +75,89 @@ def check_data():
         return 0, 0, 0
 
 def reset_data():
-    """Очищает все данные"""
+    """Очищает только пользовательские данные, оставляя справочники"""
     try:
         conn = psycopg2.connect(**DB_CONFIG)
         cursor = conn.cursor()
         
-        print("\n🗑️  Очистка данных...")
+        print("\n🗑️  Очистка пользовательских данных...")
         print("=" * 50)
         
-        # Отключаем проверку внешних ключей
-        cursor.execute("SET session_replication_role = replica;")
+        # Получаем исключения из переменной окружения
+        exclude_tg_ids_str = os.getenv("EXCLUDE_TG_IDS", "")
+        exclude_tg_ids = [int(x.strip()) for x in exclude_tg_ids_str.split(',') if x.strip()]
         
-        # Транкейтим все таблицы public, кроме служебных, с каскадом и сбросом ID
-        cursor.execute(r"""
-DO $$
-DECLARE r record;
-BEGIN
-  FOR r IN 
-    SELECT tablename 
-    FROM pg_tables 
-    WHERE schemaname = 'public' 
-      AND tablename NOT IN ('alembic_version')
-  LOOP
-    EXECUTE 'TRUNCATE TABLE ' || quote_ident(r.tablename) || ' RESTART IDENTITY CASCADE';
-  END LOOP;
-END
-$$;
-""")
-        print("✅ Все таблицы очищены (TRUNCATE ... RESTART IDENTITY CASCADE)")
+        if exclude_tg_ids:
+            print(f"🚫 Исключаем Telegram ID: {', '.join(map(str, exclude_tg_ids))}")
+            exclude_condition = f"WHERE telegram_id NOT IN ({','.join(map(str, exclude_tg_ids))})"
+            user_filter = f"WHERE user_id IN (SELECT id FROM users {exclude_condition})"
+            pair_filter = f"WHERE pair_id IN (SELECT id FROM pairs WHERE user1_id IN (SELECT id FROM users {exclude_condition}) OR user2_id IN (SELECT id FROM users {exclude_condition}))"
+        else:
+            print("🚫 Исключаем Telegram ID: —")
+            user_filter = ""
+            pair_filter = ""
+            exclude_condition = ""
         
-        # Включаем проверку внешних ключей
-        cursor.execute("SET session_replication_role = DEFAULT;")
+        # SQL команды для очистки пользовательских данных в правильном порядке
+        sql_commands = [
+            f"DELETE FROM emotion_notes {user_filter};",
+            f"DELETE FROM calendar_events {user_filter};",
+            f"DELETE FROM rituals {pair_filter};",
+            f"DELETE FROM user_answers {user_filter};",
+            f"DELETE FROM user_question_status {user_filter};",
+            f"DELETE FROM pair_daily_questions {pair_filter};",
+            f"DELETE FROM female_cycle_logs {user_filter};",
+            f"DELETE FROM female_cycles {user_filter};",
+            f"DELETE FROM pair_invites {user_filter.replace('user_id', 'owner_user_id') if user_filter else ''};",
+            f"DELETE FROM invitations {user_filter.replace('user_id', 'inviter_id') if user_filter else ''};",
+            f"DELETE FROM pairs WHERE user1_id IN (SELECT id FROM users {exclude_condition}) OR user2_id IN (SELECT id FROM users {exclude_condition});" if exclude_condition else "DELETE FROM pairs;",
+            f"DELETE FROM users {exclude_condition};"
+        ]
+        
+        print("🧹 Удаляем пользовательские данные...")
+        for i, sql in enumerate(sql_commands, 1):
+            try:
+                cursor.execute(sql)
+                print(f"  ✅ {i:2d}. Выполнено")
+            except Exception as e:
+                print(f"  ❌ {i:2d}. Ошибка: {e}")
+                raise
+        
+        # Сброс последовательностей для очищенных таблиц
+        sequences = [
+            "users_id_seq", "pairs_id_seq", "pair_invites_id_seq",
+            "user_answers_id_seq", "user_question_status_id_seq", 
+            "pair_daily_questions_id_seq", "emotion_notes_id_seq",
+            "calendar_events_id_seq", "rituals_id_seq",
+            "female_cycles_id_seq", "female_cycle_logs_id_seq",
+            "invitations_id_seq"
+        ]
+        
+        print("\n🔄 Сбрасываем последовательности...")
+        for seq in sequences:
+            try:
+                cursor.execute(f"ALTER SEQUENCE {seq} RESTART WITH 1;")
+            except Exception:
+                # Последовательность может не существовать - игнорируем
+                pass
         
         # Сохраняем изменения
         conn.commit()
         cursor.close()
         conn.close()
         
-        print("\n✅ Очистка завершена!")
+        print("\n✅ Очистка пользовательских данных завершена!")
+        print("📊 Справочники (вопросы, админы) сохранены")
         
     except Exception as e:
         print(f"❌ Ошибка очистки данных: {e}")
 
 if __name__ == "__main__":
-    print("🗑️  Простой скрипт очистки данных Pair Helper")
+    print("🗑️  Простой скрипт очистки пользовательских данных Pair Helper")
     print("=" * 60)
+    print("⚠️  ВНИМАНИЕ: Этот скрипт удалит ПОЛЬЗОВАТЕЛЬСКИЕ данные (пользователи, пары, ответы и т.п.)")
+    print("   Справочники (например, вопросы) не затрагиваются.")
+    print()
     
     # Проверяем текущие данные
     users, pairs, invitations = check_data()
@@ -129,7 +167,7 @@ if __name__ == "__main__":
     else:
         print(f"\n📊 Найдено данных: {users} пользователей, {pairs} пар, {invitations} приглашений")
         
-        confirm = input("\n🤔 Очистить все данные? (yes/no): ")
+        confirm = input("\n🤔 Очистить пользовательские данные? (yes/no): ")
         
         if confirm.lower() in ['yes', 'y', 'да', 'д']:
             reset_data()

@@ -30,9 +30,15 @@ const Registration: React.FC<RegistrationProps> = ({ user, onRegistrationComplet
   // Проверяем приглашение при загрузке
   useEffect(() => {
     // Получаем параметр из разных источников
-    const inviteFromUrl = searchParams.get('invite') || searchParams.get('tgWebAppStartParam')?.replace('invite_', '') || searchParams.get('start')?.replace('invite_', '')
-    const inviteFromTelegram = (window.Telegram?.WebApp?.initDataUnsafe as any)?.start_param?.replace('invite_', '')
-    const invite = inviteFromUrl || inviteFromTelegram
+    const directInvite = searchParams.get('invite')
+    const startParam = searchParams.get('tgWebAppStartParam') || searchParams.get('start') || ''
+    const telegramStartParam = (window.Telegram?.WebApp?.initDataUnsafe as any)?.start_param || ''
+    
+    // Извлекаем код приглашения только если есть префикс invite_
+    const startAppInvite = startParam.startsWith('invite_') ? startParam.replace('invite_', '') : null
+    const telegramInvite = telegramStartParam.startsWith('invite_') ? telegramStartParam.replace('invite_', '') : null
+    
+    const invite = directInvite || startAppInvite || telegramInvite
     
     if (invite) {
       setInviteCode(invite)

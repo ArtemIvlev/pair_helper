@@ -71,17 +71,21 @@ async def get_current_question(
             user_answered=user_answered
         )
 
-    # Если на сегодня не назначен — найдём следующий вопрос, на который не ответили оба
+    # Если на сегодня не назначен — найдём случайный вопрос, на который не ответили оба
     user_answered_ids = db.query(UserAnswer.question_id).filter(UserAnswer.user_id == current_user.id)
     partner_answered_ids = db.query(UserAnswer.question_id).filter(UserAnswer.user_id == partner_id)
 
-    next_question = db.query(Question).filter(
+    # Получаем все неотвеченные вопросы и выбираем случайный
+    unanswered_questions = db.query(Question).filter(
         ~Question.id.in_(user_answered_ids),
         ~Question.id.in_(partner_answered_ids)
-    ).order_by(Question.number).first()
-
-    if not next_question:
+    ).all()
+    
+    if not unanswered_questions:
         return None
+        
+    # Выбираем случайный вопрос из неотвеченных
+    next_question = random.choice(unanswered_questions)
 
     # Назначаем его как вопрос дня для пары
     assigned = PairDailyQuestion(
@@ -413,7 +417,10 @@ async def notify_partner_to_answer(
     if not bot_token:
         raise HTTPException(status_code=500, detail="Bot token не настроен")
 
-    webapp_url = settings.TELEGRAM_WEBAPP_URL or "https://gallery.homoludens.photos/pulse_of_pair/"
+    # Создаём диплинк на страницу вопросов
+    webapp_base_url = settings.TELEGRAM_WEBAPP_URL or "https://gallery.homoludens.photos/pulse_of_pair/"
+    webapp_url = f"{webapp_base_url}?tgWebAppStartParam=question_daily"
+    
     text = (
         f"Ваш партнёр {current_user.first_name or ''} ответил на вопрос дня.\n"
         f"Откройте Pair Helper и ответьте тоже."
@@ -422,7 +429,7 @@ async def notify_partner_to_answer(
     api_url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
     reply_markup = {
         "inline_keyboard": [[
-            {"text": "Открыть Pair Helper", "web_app": {"url": webapp_url}}
+            {"text": "Ответить на вопрос", "web_app": {"url": webapp_url}}
         ]]
     }
 
@@ -437,7 +444,7 @@ async def notify_partner_to_answer(
                 # Фолбэк: обычная URL кнопка
                 fallback = {
                     "inline_keyboard": [[
-                        {"text": "Открыть Pair Helper", "url": webapp_url}
+                        {"text": "Ответить на вопрос", "url": webapp_url}
                     ]]
                 }
                 await client.post(api_url, json={

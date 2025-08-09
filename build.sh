@@ -273,10 +273,19 @@ else
     warning "Backend недоступен на удаленном сервере. Проверьте логи через: python3 tests/check_backend_logs.py"
 fi
 
-# Проверяем удаленный frontend
+# Проверяем удаленный frontend и пробуем найти метку билда во фронтовых логах
 info "Проверяем удаленный frontend..."
 if curl -s http://$REMOTE_SERVER:3000 --max-time 10 >/dev/null 2>&1; then
     success "Frontend отвечает корректно (удаленный сервер)"
+    if command -v python3 &> /dev/null && [ -f "tests/check_frontend_logs.py" ]; then
+        export BUILD_MARKER
+        info "Пытаемся найти метку '$BUILD_MARKER' в логах frontend..."
+        if timeout 20 python3 tests/check_frontend_logs.py 2>/dev/null | grep -q "$BUILD_MARKER"; then
+            success "Метка билда найдена в логах frontend!"
+        else
+            warning "Метка билда не найдена в логах frontend (это нормально для статического сервера)."
+        fi
+    fi
 else
     warning "Frontend недоступен на удаленном сервере. Проверьте логи через: python3 tests/check_frontend_logs.py"
 fi
