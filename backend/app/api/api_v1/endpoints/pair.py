@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 import secrets
 from typing import List
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Header
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -103,14 +103,30 @@ def join_pair(
 
 @router.get("/", response_model=PairSchema)
 def get_pair(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    telegram_id: int = Header(..., alias="X-Telegram-User-ID"),
+    db: Session = Depends(get_db)
 ):
     """Получить информацию о паре"""
+    # Находим пользователя по Telegram ID
+    user = db.query(User).filter(User.telegram_id == telegram_id).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Пользователь не найден"
+        )
+    
     pair = db.query(Pair).filter(
-        (Pair.user1_id == current_user.id) | (Pair.user2_id == current_user.id),
+        (Pair.user1_id == user.id) | (Pair.user2_id == user.id),
         Pair.status == "active"
     ).first()
+    
+    if pair:
+        # Загружаем данные пользователей
+        from sqlalchemy.orm import joinedload
+        pair = db.query(Pair).options(
+            joinedload(Pair.user1),
+            joinedload(Pair.user2)
+        ).filter(Pair.id == pair.id).first()
     
     if not pair:
         raise HTTPException(

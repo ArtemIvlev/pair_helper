@@ -24,8 +24,9 @@ const Mood: React.FC = () => {
   }
 
   return (
-    <div className="container">
-      <div className="header">
+    <div className="main-content">
+      <div className="container">
+        <div className="header">
         <h1>Настроение дня</h1>
         <p>Как ты себя чувствуешь сегодня?</p>
       </div>
@@ -73,6 +74,7 @@ const Mood: React.FC = () => {
           </div>
         </div>
       )}
+      </div>
     </div>
   )
 }

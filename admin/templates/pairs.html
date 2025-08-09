@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+
+{% block title %}Пары - Pair Helper Admin{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Пары</h1>
+</div>
+
+<div class="card shadow">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>ID пары</th>
+                        <th>Пользователь 1</th>
+                        <th>Пользователь 2</th>
+                        <th>Дата создания</th>
+                        <th>Статус</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for pair, user1, user2 in pairs.items %}
+                    <tr>
+                        <td>{{ pair.id }}</td>
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <div class="bg-primary rounded-circle d-flex align-items-center justify-content-center me-2" style="width: 32px; height: 32px;">
+                                    <span class="text-white small">{{ user1.first_name[0] if user1.first_name else '?' }}</span>
+                                </div>
+                                <div>
+                                    <div class="fw-bold">{{ user1.first_name }}</div>
+                                    <small class="text-muted">ID: {{ user1.telegram_id }}</small>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <div class="bg-success rounded-circle d-flex align-items-center justify-content-center me-2" style="width: 32px; height: 32px;">
+                                    <span class="text-white small">{{ user2.first_name[0] if user2.first_name else '?' }}</span>
+                                </div>
+                                <div>
+                                    <div class="fw-bold">{{ user2.first_name }}</div>
+                                    <small class="text-muted">ID: {{ user2.telegram_id }}</small>
+                                </div>
+                            </div>
+                        </td>
+                        <td>{{ pair.created_at.strftime('%d.%m.%Y %H:%M') }}</td>
+                        <td>
+                            {% if pair.is_active %}
+                                <span class="badge bg-success">Активна</span>
+                            {% else %}
+                                <span class="badge bg-secondary">Неактивна</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        {% if pairs.pages > 1 %}
+        <nav aria-label="Навигация по страницам">
+            <ul class="pagination justify-content-center">
+                {% if pairs.has_prev %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('pairs', page=pairs.prev_num) }}">Предыдущая</a>
+                    </li>
+                {% endif %}
+                
+                {% for page_num in pairs.iter_pages() %}
+                    {% if page_num %}
+                        {% if page_num != pairs.page %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('pairs', page=page_num) }}">{{ page_num }}</a>
+                            </li>
+                        {% else %}
+                            <li class="page-item active">
+                                <span class="page-link">{{ page_num }}</span>
+                            </li>
+                        {% endif %}
+                    {% else %}
+                        <li class="page-item disabled">
+                            <span class="page-link">...</span>
+                        </li>
+                    {% endif %}
+                {% endfor %}
+                
+                {% if pairs.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('pairs', page=pairs.next_num) }}">Следующая</a>
+                    </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+        
+        <div class="text-center mt-3">
+            <small class="text-muted">
+                Показано {{ pairs.items|length }} из {{ pairs.total }} пар
+            </small>
+        </div>
+    </div>
+</div>
+{% endblock %}

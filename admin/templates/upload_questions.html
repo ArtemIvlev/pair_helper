@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+
+{% block title %}Загрузка вопросов из Excel - Pair Helper Admin{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1>
+                <i class="bi bi-upload"></i> Загрузка вопросов из Excel
+            </h1>
+            <a href="{{ url_for('questions') }}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> Назад к списку
+            </a>
+        </div>
+
+        <!-- Предупреждение -->
+        <div class="alert alert-warning" role="alert">
+            <h5><i class="bi bi-exclamation-triangle"></i> Внимание!</h5>
+            <p class="mb-0">
+                Загрузка файла <strong>полностью заменит</strong> все существующие вопросы. 
+                Убедитесь, что ваш Excel файл содержит все необходимые вопросы.
+            </p>
+        </div>
+
+        <!-- Инструкция -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-info-circle"></i> Требования к файлу</h5>
+            </div>
+            <div class="card-body">
+                <p>Excel файл должен содержать следующие колонки:</p>
+                <ul>
+                    <li><strong>номер</strong> - уникальный номер вопроса (число)</li>
+                    <li><strong>вопрос</strong> - текст вопроса</li>
+                    <li><strong>тематика</strong> - категория вопроса</li>
+                </ul>
+                
+                <h6 class="mt-3">Пример структуры файла:</h6>
+                <div class="table-responsive">
+                    <table class="table table-sm table-bordered">
+                        <thead class="table-light">
+                            <tr>
+                                <th>номер</th>
+                                <th>вопрос</th>
+                                <th>тематика</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>1</td>
+                                <td>Какая у тебя самая заветная мечта?</td>
+                                <td>Личность</td>
+                            </tr>
+                            <tr>
+                                <td>2</td>
+                                <td>Что для тебя означает счастье в отношениях?</td>
+                                <td>Отношения</td>
+                            </tr>
+                            <tr>
+                                <td>3</td>
+                                <td>Как ты видишь нашу семью через 10 лет?</td>
+                                <td>Будущее</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="alert alert-info mt-3" role="alert">
+                    <small>
+                        <i class="bi bi-lightbulb"></i> 
+                        Поддерживаются файлы в форматах .xlsx и .xls
+                    </small>
+                </div>
+            </div>
+        </div>
+
+        <!-- Форма загрузки -->
+        <div class="card">
+            <div class="card-body">
+                <form method="POST" enctype="multipart/form-data">
+                    <div class="mb-4">
+                        <label for="file" class="form-label">Выберите Excel файл *</label>
+                        <input type="file" 
+                               class="form-control" 
+                               id="file" 
+                               name="file" 
+                               accept=".xlsx,.xls"
+                               required>
+                        <div class="form-text">
+                            Максимальный размер файла: 16 МБ. Поддерживаемые форматы: .xlsx, .xls
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="confirmReplace" required>
+                            <label class="form-check-label text-danger" for="confirmReplace">
+                                <strong>Я понимаю, что все существующие вопросы будут заменены</strong>
+                            </label>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-warning" id="uploadBtn" disabled>
+                            <i class="bi bi-upload"></i> Загрузить и заменить
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Статистика (если есть вопросы) -->
+        {% set total_questions = namespace(count=0) %}
+        {% if total_questions.count > 0 %}
+        <div class="card mt-4">
+            <div class="card-body text-center">
+                <h5>Текущая статистика</h5>
+                <p class="text-muted mb-0">
+                    В базе данных сейчас: <strong>{{ total_questions.count }}</strong> вопросов
+                </p>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Включение кнопки загрузки только после подтверждения
+document.getElementById('confirmReplace').addEventListener('change', function() {
+    document.getElementById('uploadBtn').disabled = !this.checked;
+});
+
+// Предварительный просмотр файла
+document.getElementById('file').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (file) {
+        const fileSize = (file.size / 1024 / 1024).toFixed(2);
+        const fileInfo = document.createElement('small');
+        fileInfo.className = 'text-muted d-block mt-1';
+        fileInfo.textContent = `Выбран файл: ${file.name} (${fileSize} МБ)`;
+        
+        // Удаляем предыдущую информацию о файле
+        const existingInfo = e.target.parentNode.querySelector('.file-info');
+        if (existingInfo) {
+            existingInfo.remove();
+        }
+        
+        fileInfo.className += ' file-info';
+        e.target.parentNode.appendChild(fileInfo);
+    }
+});
+</script>
+{% endblock %}
+

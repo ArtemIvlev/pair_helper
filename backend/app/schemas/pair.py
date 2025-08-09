@@ -3,6 +3,7 @@ from typing import Optional
 from pydantic import BaseModel
 
 from app.models.pair import PairStatus, InviteStatus
+from app.schemas.user import User
 
 
 class PairBase(BaseModel):
@@ -18,6 +19,8 @@ class PairCreate(PairBase):
 class Pair(PairBase):
     id: int
     created_at: datetime
+    user1: Optional[User] = None
+    user2: Optional[User] = None
 
     class Config:
         from_attributes = True

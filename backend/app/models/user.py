@@ -29,6 +29,8 @@ class User(Base):
     female_cycle = relationship("FemaleCycle", back_populates="user", uselist=False)
     female_cycle_logs = relationship("FemaleCycleLog", back_populates="user")
     emotion_notes = relationship("EmotionNote", back_populates="user")
+    sent_invitations = relationship("Invitation", back_populates="inviter")
+    question_answers = relationship("UserAnswer", back_populates="user")
 
     def __repr__(self):
         return f"<User(id={self.id}, telegram_id={self.telegram_id}, first_name='{self.first_name}')>"

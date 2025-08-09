@@ -13,6 +13,13 @@ class UserCreate(UserBase):
     telegram_id: int
 
 
+class UserRegister(UserBase):
+    telegram_id: int
+    accept_terms: bool
+    accept_privacy: bool
+    invite_code: Optional[str] = None
+
+
 class UserUpdate(BaseModel):
     first_name: Optional[str] = None
     last_name: Optional[str] = None

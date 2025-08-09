@@ -9,8 +9,14 @@ from dotenv import load_dotenv
 # Загружаем переменные окружения
 load_dotenv()
 
+# Информация о билде
+BUILD_DATE = os.getenv("BUILD_DATE", "unknown")
+BUILD_ID = os.getenv("BUILD_ID", "unknown") 
+BUILD_MARKER = os.getenv("BUILD_MARKER", "unknown")
+
 # Настройка логирования
 logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Инициализация бота
 bot = Bot(token=os.getenv("TELEGRAM_BOT_TOKEN"))
@@ -23,42 +29,106 @@ WEBAPP_URL = os.getenv("TELEGRAM_WEBAPP_URL", "http://localhost:3000")
 @dp.message(Command("start"))
 async def cmd_start(message: types.Message):
     """Обработчик команды /start"""
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(
-            text="Открыть Pair Helper",
-            web_app=WebAppInfo(url=WEBAPP_URL)
-        )]
-    ])
+    # Логируем входящую команду
+    logging.info(f"Получена команда /start от пользователя {message.from_user.id} (username: {message.from_user.username})")
+    logging.info(f"Полный текст команды: {message.text}")
     
-    await message.answer(
-        "Привет! 👋\n\n"
-        "Добро пожаловать в Pair Helper - приложение для пар!\n\n"
-        "Здесь вы можете:\n"
-        "• Отвечать на ежедневные вопросы\n"
-        "• Отмечать настроение дня\n"
-        "• Вести общий календарь\n"
-        "• Создавать ритуалы\n"
-        "• И многое другое!\n\n"
-        "Нажмите кнопку ниже, чтобы открыть приложение:",
-        reply_markup=keyboard
-    )
+    # Проверяем, есть ли параметр приглашения
+    args = message.text.split()
+    webapp_url = WEBAPP_URL
+    logging.info(f"Все аргументы: {args}")
+    
+    if len(args) > 1 and args[1].startswith("invite_"):
+        invite_code = args[1].replace("invite_", "")
+        webapp_url = f"{WEBAPP_URL}?invite={invite_code}"
+        logging.info(f"✅ Обнаружен код приглашения: {invite_code}")
+        logging.info(f"🔗 URL с приглашением: {webapp_url}")
+    else:
+        logging.info("❌ Параметр приглашения не найден")
+    
+    if len(args) > 1 and args[1].startswith("invite_"):
+        # Если есть приглашение, показываем специальное сообщение
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(
+                text="Открыть Pair Helper",
+                web_app=WebAppInfo(url=webapp_url)
+            )]
+        ])
+        
+        await message.answer(
+            f"🎉 Вы приглашены в пару!\n\n"
+            f"Код приглашения: `{invite_code}`\n\n"
+            f"Нажмите кнопку ниже, чтобы открыть приложение и зарегистрироваться.\n"
+            f"После регистрации вы автоматически станете партнерами!",
+            parse_mode="Markdown",
+            reply_markup=keyboard
+        )
+    else:
+        # Если нет приглашения, показываем основное меню
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(
+                text="Открыть Pair Helper",
+                web_app=WebAppInfo(url=webapp_url)
+            )]
+        ])
+        
+        await message.answer(
+            "Привет! 👋\n\n"
+            "Добро пожаловать в Pair Helper - приложение для пар!\n\n"
+            "Здесь вы можете:\n"
+            "• Отвечать на ежедневные вопросы\n"
+            "• Отмечать настроение дня\n"
+            "• Вести общий календарь\n"
+            "• Создавать ритуалы\n"
+            "• И многое другое!\n\n"
+            "Нажмите кнопку ниже, чтобы открыть приложение:",
+            reply_markup=keyboard
+        )
 
 
 @dp.message(Command("invite"))
 async def cmd_invite(message: types.Message):
     """Обработчик команды /invite"""
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(
-            text="Открыть Pair Helper",
-            web_app=WebAppInfo(url=f"{WEBAPP_URL}/invite")
-        )]
-    ])
+    import httpx
     
-    await message.answer(
-        "Создать приглашение для партнёра:\n\n"
-        "Откройте приложение, чтобы сгенерировать код-приглашение.",
-        reply_markup=keyboard
-    )
+    logging.info(f"Получена команда /invite от пользователя {message.from_user.id} (username: {message.from_user.username})")
+    
+    try:
+        # Генерируем приглашение через API
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                f"{os.getenv('API_BASE_URL', 'http://192.168.2.228:8000')}/api/v1/invitations/generate",
+                params={"inviter_telegram_id": message.from_user.id}
+            )
+            
+            if response.status_code == 200:
+                invitation_data = response.json()
+                invite_code = invitation_data["code"]
+                invite_link = f"https://t.me/PulseOfPair_Bot/pulse_of_pair?startapp=invite_{invite_code}"
+                
+                keyboard = InlineKeyboardMarkup(inline_keyboard=[
+                    [InlineKeyboardButton(
+                        text="Открыть Pair Helper",
+                        web_app=WebAppInfo(url=WEBAPP_URL)
+                    )]
+                ])
+                
+                await message.answer(
+                    f"🎉 Ваша ссылка для приглашения готова!\n\n"
+                    f"Отправьте эту ссылку вашему партнеру:\n"
+                    f"`{invite_link}`\n\n"
+                    f"Ссылка действительна 7 дней.",
+                    parse_mode="Markdown",
+                    reply_markup=keyboard
+                )
+            else:
+                await message.answer(
+                    "❌ Ошибка при создании приглашения. Убедитесь, что вы зарегистрированы в приложении."
+                )
+                
+    except Exception as e:
+        logging.error(f"Ошибка при создании приглашения: {e}")
+        await message.answer("❌ Произошла ошибка при создании приглашения.")
 
 
 @dp.message(Command("help"))
@@ -140,11 +210,14 @@ async def echo_message(message: types.Message):
 
 async def main():
     """Основная функция"""
-    logging.info("Запуск Pair Helper Bot...")
+    logger.info("🤖 Pair Helper Bot запускается...")
+    logger.info(f"📦 Build ID: {BUILD_ID}")
+    logger.info(f"📅 Build Date: {BUILD_DATE}")
+    logger.info(f"🏷️  {BUILD_MARKER}")
     
     # Проверяем наличие токена
     if not os.getenv("TELEGRAM_BOT_TOKEN"):
-        logging.error("TELEGRAM_BOT_TOKEN не установлен!")
+        logger.error("TELEGRAM_BOT_TOKEN не установлен!")
         return
     
     # Запускаем бота

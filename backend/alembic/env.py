@@ -4,6 +4,10 @@ from sqlalchemy import pool
 from alembic import context
 import os
 import sys
+from dotenv import load_dotenv
+
+# Загружаем переменные окружения
+load_dotenv(os.path.join(os.path.dirname(os.path.dirname(__file__)), '..', '.env'))
 
 # Добавляем путь к приложению
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))

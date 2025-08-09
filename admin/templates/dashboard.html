@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+
+{% block title %}Дашборд - Pair Helper Admin{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Дашборд</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <div class="btn-group me-2">
+            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="refreshStats()">
+                <i class="bi bi-arrow-clockwise"></i> Обновить
+            </button>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card stats-card users border-0 shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-white text-uppercase mb-1">
+                            Пользователи
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-white" id="total-users">{{ total_users }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="bi bi-people fa-2x text-white"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card stats-card pairs border-0 shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-white text-uppercase mb-1">
+                            Пары
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-white" id="total-pairs">{{ total_pairs }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="bi bi-heart fa-2x text-white"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-xl-8 col-lg-7">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                <h6 class="m-0 font-weight-bold text-primary">Регистрации за 30 дней</h6>
+            </div>
+            <div class="card-body">
+                <canvas id="usersChart" width="400" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-4 col-lg-5">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Последние пользователи</h6>
+            </div>
+            <div class="card-body">
+                {% if recent_users %}
+                    {% for user in recent_users %}
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="flex-shrink-0">
+                            <div class="bg-primary rounded-circle d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                                <span class="text-white font-weight-bold">{{ user.first_name[0] if user.first_name else '?' }}</span>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <div class="fw-bold">{{ user.first_name }}</div>
+                            <small class="text-muted">
+                                ID: {{ user.telegram_id }}<br>
+                                {{ user.created_at.strftime('%d.%m.%Y %H:%M') }}
+                            </small>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-muted">Нет пользователей</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let usersChart;
+
+function initChart() {
+    const ctx = document.getElementById('usersChart').getContext('2d');
+    usersChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: [{
+                label: 'Новые пользователи',
+                data: [],
+                borderColor: 'rgb(75, 192, 192)',
+                backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                tension: 0.1
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        stepSize: 1
+                    }
+                }
+            }
+        }
+    });
+}
+
+function refreshStats() {
+    fetch('/api/stats')
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('total-users').textContent = data.total_users;
+            document.getElementById('total-pairs').textContent = data.total_pairs;
+            
+            if (usersChart) {
+                usersChart.data.labels = data.daily_users.map(item => item.date);
+                usersChart.data.datasets[0].data = data.daily_users.map(item => item.count);
+                usersChart.update();
+            }
+        })
+        .catch(error => console.error('Error fetching stats:', error));
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    initChart();
+    refreshStats();
+});
+</script>
+{% endblock %}

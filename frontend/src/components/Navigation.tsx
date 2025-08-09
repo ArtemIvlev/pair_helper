@@ -4,9 +4,6 @@ import {
   Home, 
   MessageCircle, 
   Heart, 
-  Calendar, 
-  Target, 
-  BarChart3, 
   Settings 
 } from 'lucide-react'
 
@@ -15,14 +12,10 @@ const Navigation: React.FC = () => {
   const navigate = useNavigate()
 
   const navItems = [
-    { path: '/', icon: Home, label: 'Главная' },
-    { path: '/question', icon: MessageCircle, label: 'Вопрос' },
-    { path: '/mood', icon: Heart, label: 'Настроение' },
-    { path: '/appreciation', icon: Heart, label: 'Признание' },
-    { path: '/calendar', icon: Calendar, label: 'Календарь' },
-    { path: '/rituals', icon: Target, label: 'Ритуалы' },
-    { path: '/stats', icon: BarChart3, label: 'Статистика' },
-    { path: '/settings', icon: Settings, label: 'Настройки' },
+    { path: '/pulse_of_pair/', icon: Home, label: 'Главная' },
+    { path: '/pulse_of_pair/question', icon: MessageCircle, label: 'Вопрос' },
+    { path: '/pulse_of_pair/mood', icon: Heart, label: 'Настроение' },
+    { path: '/pulse_of_pair/settings', icon: Settings, label: 'Настройки' },
   ]
 
   return (

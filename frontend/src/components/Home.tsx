@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Heart, MessageCircle, Calendar, Target } from 'lucide-react'
+import { Heart, MessageCircle } from 'lucide-react'
+import InvitePartner from './InvitePartner'
 
 interface HomeProps {
   user: any
@@ -11,9 +12,7 @@ const Home: React.FC<HomeProps> = ({ user }) => {
   const [loading, setLoading] = useState(true)
   const [stats, setStats] = useState({
     questionStreak: 0,
-    moodStreak: 0,
-    appreciationStreak: 0,
-    ritualsCompleted: 0
+    moodStreak: 0
   })
 
   useEffect(() => {
@@ -22,9 +21,7 @@ const Home: React.FC<HomeProps> = ({ user }) => {
       setLoading(false)
       setStats({
         questionStreak: 5,
-        moodStreak: 3,
-        appreciationStreak: 2,
-        ritualsCompleted: 8
+        moodStreak: 3
       })
     }, 1000)
   }, [])
@@ -34,36 +31,15 @@ const Home: React.FC<HomeProps> = ({ user }) => {
       title: 'Вопрос дня',
       description: 'Ответить на ежедневный вопрос',
       icon: MessageCircle,
-      path: '/question',
+      path: '/pulse_of_pair/question',
       color: '#667eea'
     },
     {
       title: 'Настроение',
       description: 'Отметить настроение дня',
       icon: Heart,
-      path: '/mood',
+      path: '/pulse_of_pair/mood',
       color: '#f093fb'
-    },
-    {
-      title: 'Признание',
-      description: 'Поделиться благодарностью',
-      icon: Heart,
-      path: '/appreciation',
-      color: '#4facfe'
-    },
-    {
-      title: 'Календарь',
-      description: 'Посмотреть события',
-      icon: Calendar,
-      path: '/calendar',
-      color: '#43e97b'
-    },
-    {
-      title: 'Ритуалы',
-      description: 'Отметить выполненные ритуалы',
-      icon: Target,
-      path: '/rituals',
-      color: '#fa709a'
     }
   ]
 
@@ -76,8 +52,9 @@ const Home: React.FC<HomeProps> = ({ user }) => {
   }
 
   return (
-    <div className="container">
-      <div className="header fade-in">
+    <div className="main-content">
+      <div className="container">
+        <div className="header fade-in">
         <h1>Привет, {user?.first_name || 'дорогой'}! 👋</h1>
         <p>Как дела сегодня?</p>
       </div>
@@ -102,22 +79,6 @@ const Home: React.FC<HomeProps> = ({ user }) => {
               дней подряд отмечаете настроение
             </div>
           </div>
-          <div className="text-center">
-            <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#4facfe' }}>
-              {stats.appreciationStreak}
-            </div>
-            <div style={{ fontSize: '12px', color: 'var(--tg-theme-hint-color)' }}>
-              дней подряд делитесь признаниями
-            </div>
-          </div>
-          <div className="text-center">
-            <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#fa709a' }}>
-              {stats.ritualsCompleted}
-            </div>
-            <div style={{ fontSize: '12px', color: 'var(--tg-theme-hint-color)' }}>
-              ритуалов выполнено на этой неделе
-            </div>
-          </div>
         </div>
       </div>
 
@@ -125,7 +86,7 @@ const Home: React.FC<HomeProps> = ({ user }) => {
       <div className="card card-elevated fade-in">
         <h3>Быстрые действия</h3>
         <div style={{ marginTop: '16px' }}>
-          {quickActions.map((action, index) => {
+          {quickActions.map((action) => {
             const Icon = action.icon
             return (
               <div
@@ -186,6 +147,10 @@ const Home: React.FC<HomeProps> = ({ user }) => {
         <p style={{ margin: 0, fontSize: '14px' }}>
           Каждый день - это новая возможность стать ближе друг к другу
         </p>
+      </div>
+
+      {/* Компонент приглашения партнера */}
+      <InvitePartner user={user} />
       </div>
     </div>
   )

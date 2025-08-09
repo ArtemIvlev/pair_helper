@@ -1,26 +1,56 @@
-FROM python:3.11-slim
+FROM python:3.11-slim as dependencies
+
+# Создаем виртуальное окружение
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
 
 WORKDIR /app
 
-# Install system dependencies
+# Копирование файлов зависимостей (только requirements.txt для кеша)
+COPY requirements.txt .
+
+# Установка Python зависимостей
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Финальный stage
+FROM python:3.11-slim
+
+# Копируем виртуальное окружение из предыдущего stage
+COPY --from=dependencies /opt/venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+WORKDIR /app
+
+# Установка системных зависимостей
 RUN apt-get update && apt-get install -y \
     gcc \
     postgresql-client \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements and install Python dependencies
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
-# Copy application code
-COPY . .
-
-# Create non-root user
+# Создание пользователя без прав root
 RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
 USER appuser
 
-# Expose port
+# Копирование кода приложения (этот слой будет пересобираться при изменении кода)
+COPY . .
+
+# Открытие порта
 EXPOSE 8000
 
-# Default command
+# Аргументы сборки (в самом конце чтобы не ломать кеш)
+ARG BUILD_DATE
+ARG BUILD_ID  
+ARG BUILD_MARKER
+
+# Метаданные образа
+LABEL build_date="${BUILD_DATE}"
+LABEL build_id="${BUILD_ID}"
+LABEL build_marker="${BUILD_MARKER}"
+
+# Переменные окружения для передачи в контейнер
+ENV BUILD_DATE=${BUILD_DATE}
+ENV BUILD_ID=${BUILD_ID}
+ENV BUILD_MARKER=${BUILD_MARKER}
+
+# Команда запуска
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

@@ -8,8 +8,20 @@ class Settings(BaseSettings):
     API_V1_STR: str = "/api/v1"
     PROJECT_NAME: str = "Pair Helper"
     
-    # CORS
-    ALLOWED_HOSTS: List[str] = ["*"]
+    # CORS - только разрешенные домены
+    ALLOWED_HOSTS: List[str] = [
+        "https://gallery.homoludens.photos",
+        "gallery.homoludens.photos",  # Для API запросов через nginx
+        "https://t.me", 
+        "https://web.telegram.org",
+        "192.168.2.*",         # Вся подсеть сервера
+        "172.16.*.*",          # Docker внутренние сети
+        "172.17.*.*",          # Docker bridge сети
+        "172.18.*.*",          # Docker compose сети
+        "10.*.*.*",            # Внутренние сети
+        "localhost",           # Локальные запросы
+        "127.0.0.1"            # Loopback
+    ]
     
     # Database
     DATABASE_URL: str = "postgresql://pair_user:pair_password@localhost:5432/pair_helper"

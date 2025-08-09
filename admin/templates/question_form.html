@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+
+{% block title %}
+{% if action == 'add' %}Добавить вопрос{% else %}Редактировать вопрос{% endif %} - Pair Helper Admin
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1>
+                {% if action == 'add' %}
+                    <i class="bi bi-plus-lg"></i> Добавить вопрос
+                {% else %}
+                    <i class="bi bi-pencil"></i> Редактировать вопрос
+                {% endif %}
+            </h1>
+            <a href="{{ url_for('questions') }}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> Назад к списку
+            </a>
+        </div>
+
+        <div class="card">
+            <div class="card-body">
+                <form method="POST">
+                    <div class="mb-3">
+                        <label for="number" class="form-label">Номер вопроса *</label>
+                        <input type="number" 
+                               class="form-control" 
+                               id="number" 
+                               name="number" 
+                               value="{{ question.number if question else '' }}" 
+                               required
+                               min="1">
+                        <div class="form-text">Уникальный номер вопроса (например: 1, 2, 3...)</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="category" class="form-label">Категория *</label>
+                        <input type="text" 
+                               class="form-control" 
+                               id="category" 
+                               name="category" 
+                               value="{{ question.category if question else '' }}" 
+                               required
+                               list="categories">
+                        <datalist id="categories">
+                            <option value="Отношения">
+                            <option value="Семья">
+                            <option value="Будущее">
+                            <option value="Интимность">
+                            <option value="Личность">
+                            <option value="Ценности">
+                            <option value="Досуг">
+                            <option value="Работа">
+                            <option value="Финансы">
+                            <option value="Здоровье">
+                        </datalist>
+                        <div class="form-text">Тематическая категория вопроса</div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="text" class="form-label">Текст вопроса *</label>
+                        <textarea class="form-control" 
+                                  id="text" 
+                                  name="text" 
+                                  rows="4" 
+                                  required
+                                  placeholder="Введите текст вопроса...">{{ question.text if question else '' }}</textarea>
+                        <div class="form-text">Полный текст вопроса для пар</div>
+                    </div>
+
+                    <div class="d-flex justify-content-between">
+                        <a href="{{ url_for('questions') }}" class="btn btn-secondary">
+                            <i class="bi bi-x-lg"></i> Отмена
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-lg"></i>
+                            {% if action == 'add' %}Добавить вопрос{% else %}Сохранить изменения{% endif %}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        {% if question %}
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="mb-0">Информация о вопросе</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <strong>Создан:</strong><br>
+                        <small class="text-muted">{{ question.created_at.strftime('%d.%m.%Y в %H:%M') }}</small>
+                    </div>
+                    <div class="col-md-6">
+                        <strong>Последнее обновление:</strong><br>
+                        <small class="text-muted">{{ question.updated_at.strftime('%d.%m.%Y в %H:%M') }}</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Автоматическое изменение размера textarea
+document.getElementById('text').addEventListener('input', function() {
+    this.style.height = 'auto';
+    this.style.height = (this.scrollHeight) + 'px';
+});
+</script>
+{% endblock %}
+

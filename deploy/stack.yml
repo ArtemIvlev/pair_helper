@@ -1,0 +1,70 @@
+version: '3.8'
+
+services:
+  pair-helper-backend:
+    image: 192.168.2.228:5000/pair-helper-backend:latest
+    container_name: pair-helper-backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - SECRET_KEY=${SECRET_KEY}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - API_BASE_URL=https://gallery.homoludens.photos/pulse_of_pair/api
+      - VITE_API_BASE_URL=https://gallery.homoludens.photos/pulse_of_pair/api
+      - TZ=Europe/Moscow
+    networks:
+      - pair_helper_network
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+
+  pair-helper-bot:
+    image: 192.168.2.228:5000/pair-helper-bot:latest
+    container_name: pair-helper-bot
+    restart: unless-stopped
+    environment:
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - TELEGRAM_WEBAPP_URL=https://gallery.homoludens.photos/pulse_of_pair/
+      - DATABASE_URL=${DATABASE_URL}
+      - TZ=Europe/Moscow
+    networks:
+      - pair_helper_network
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+
+  pair-helper-frontend:
+    image: 192.168.2.228:5000/pair-helper-frontend:latest
+    container_name: pair-helper-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - VITE_API_BASE_URL=https://gallery.homoludens.photos/pulse_of_pair/api
+      - VITE_TELEGRAM_BOT_TOKEN=8239508680:AAG9iWlwHfm_wpfjtvm08JdEo26RaDOSYyY
+      - VITE_BASE_PATH=/pulse_of_pair
+      - TZ=Europe/Moscow
+    networks:
+      - pair_helper_network
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+
+  pair-helper-admin:
+    image: 192.168.2.228:5000/pair-helper-admin:latest
+    container_name: pair-helper-admin
+    restart: unless-stopped
+    ports:
+      - "5001:5001"
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - ADMIN_SECRET_KEY=${ADMIN_SECRET_KEY}
+      - TZ=Europe/Moscow
+    networks:
+      - pair_helper_network
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+
+networks:
+  pair_helper_network:
+    driver: bridge
+?

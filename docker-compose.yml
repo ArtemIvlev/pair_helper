@@ -59,6 +59,18 @@ services:
       - VITE_API_BASE_URL=http://localhost:8000
     command: npm run dev
 
+  admin:
+    build:
+      context: ./admin
+      dockerfile: Dockerfile
+    ports:
+      - "5001:5001"
+    environment:
+      - DATABASE_URL=postgresql://admin:Passw0rd@192.168.2.228:5432/pair_helper
+      - ADMIN_SECRET_KEY=your-secret-key-change-this
+    volumes:
+      - ./admin:/app
+
   nginx:
     image: nginx:alpine
     ports:

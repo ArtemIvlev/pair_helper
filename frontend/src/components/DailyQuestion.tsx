@@ -1,68 +1,388 @@
 import React, { useState, useEffect } from 'react'
 
+interface Question {
+  id: number
+  number: number
+  text: string
+  category: string
+  partner_answered: boolean
+  user_answered: boolean
+}
+
+
+
 const DailyQuestion: React.FC = () => {
-  const [question, setQuestion] = useState('')
+  const [question, setQuestion] = useState<Question | null>(null)
   const [answer, setAnswer] = useState('')
   const [loading, setLoading] = useState(true)
+  const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
+  const [error, setError] = useState('')
+  const [recent, setRecent] = useState<{ id: number; number: number; text: string; category: string; partner_answered: boolean; user_answered: boolean }[]>([])
+  const [selected, setSelected] = useState<null | {
+    question: Question
+    user_answer: { id: number; question_id: number; answer_text: string; created_at: string } | null
+    partner_answer: { id: number; question_id: number; answer_text: string; created_at: string } | null
+    partner_name: string
+  }>(null)
+
+  const fetchCurrentQuestion = async () => {
+    try {
+      const initData = (window as any).Telegram?.WebApp?.initData
+      console.log('DailyQuestion: initData =', initData)
+      console.log('DailyQuestion: Telegram WebApp =', (window as any).Telegram?.WebApp)
+      if (!initData) {
+        setError('Ошибка аутентификации - нет initData')
+        setLoading(false)
+        return
+      }
+
+      const response = await fetch('/pulse_of_pair/api/v1/questions/current', {
+        headers: {
+          'X-Telegram-Init-Data': initData,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      console.log('DailyQuestion: response status =', response.status)
+      console.log('DailyQuestion: response ok =', response.ok)
+
+      if (response.ok) {
+        const data = await response.json()
+        console.log('DailyQuestion: success data =', data)
+        setQuestion(data)
+        // Подтянем последние отвеченные вопросы для мини‑истории
+        fetchRecent()
+      } else if (response.status === 404) {
+        const errorData = await response.json()
+        console.log('DailyQuestion: 404 error =', errorData)
+        setError(errorData.detail || 'Вопросы не найдены')
+      } else {
+        const errorText = await response.text()
+        console.log('DailyQuestion: error status =', response.status, 'text =', errorText)
+        setError(`Ошибка загрузки вопроса (${response.status})`)
+      }
+    } catch (err) {
+      setError('Ошибка соединения с сервером')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const fetchRecent = async () => {
+    try {
+      const initData = (window as any).Telegram?.WebApp?.initData
+      if (!initData) return
+      const resp = await fetch('/pulse_of_pair/api/v1/questions/history?limit=5', {
+        headers: {
+          'X-Telegram-Init-Data': initData,
+          'Content-Type': 'application/json'
+        }
+      })
+      if (resp.ok) {
+        const items = await resp.json()
+        // только отвеченные пользователем уже приходят, но подстрахуемся
+        const mapped = (items || []).map((x: any) => ({
+          id: x.question.id,
+          number: x.question.number,
+          text: x.question.text,
+          category: x.question.category,
+          partner_answered: x.partner_answered,
+          user_answered: x.user_answered
+        }))
+        setRecent(mapped)
+      }
+    } catch {}
+  }
+
+  const fetchAnswers = async (questionId: number) => {
+    try {
+      const initData = (window as any).Telegram?.WebApp?.initData
+      const response = await fetch(`/pulse_of_pair/api/v1/questions/answers/${questionId}`, {
+        headers: {
+          'X-Telegram-Init-Data': initData,
+          'Content-Type': 'application/json'
+        }
+      })
+      if (response.ok) {
+        const data = await response.json()
+        setSelected(data)
+      }
+    } catch {}
+  }
 
   useEffect(() => {
-    // Имитация загрузки вопроса
-    setTimeout(() => {
-      setQuestion('Что сегодня заставило тебя улыбнуться?')
-      setLoading(false)
-    }, 1000)
+    fetchCurrentQuestion()
   }, [])
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (answer.trim()) {
-      setSubmitted(true)
-      // Здесь будет отправка на сервер
+    if (!answer.trim() || !question) return
+
+    setSubmitting(true)
+    setError('')
+
+    try {
+      const initData = (window as any).Telegram?.WebApp?.initData
+      const response = await fetch('/pulse_of_pair/api/v1/questions/answer', {
+        method: 'POST',
+        headers: {
+          'X-Telegram-Init-Data': initData,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          question_id: question.id,
+          answer_text: answer.trim()
+        })
+      })
+
+      if (response.ok) {
+        setSubmitted(true)
+        setAnswer('')
+        // после ответа перезагрузим мини‑историю
+        fetchRecent()
+      } else {
+        const errorData = await response.json()
+        setError(errorData.detail || 'Ошибка отправки ответа')
+      }
+    } catch (err) {
+      setError('Ошибка соединения с сервером')
+    } finally {
+      setSubmitting(false)
     }
   }
 
   if (loading) {
     return (
-      <div className="container">
-        <div className="loading">Загрузка вопроса...</div>
+      <div className="main-content">
+        <div className="container">
+          <div className="loading">Загрузка вопроса...</div>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="main-content">
+        <div className="container">
+          <div className="header">
+            <h1>Вопросы для пар</h1>
+            <p>Узнайте друг друга лучше</p>
+          </div>
+          <div className="card card-elevated fade-in">
+            <div className="error" style={{ textAlign: 'center', padding: '20px' }}>
+              <h3>😔</h3>
+              <p style={{ color: 'var(--tg-theme-destructive-text-color)', marginBottom: '16px' }}>
+                {error}
+              </p>
+              <button onClick={fetchCurrentQuestion} className="btn btn-primary">
+                Попробовать снова
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (!question) {
+    return (
+      <div className="main-content">
+        <div className="container">
+          <div className="header">
+            <h1>Вопросы для пар</h1>
+            <p>Узнайте друг друга лучше</p>
+          </div>
+          <div className="card card-elevated fade-in">
+            <div style={{ textAlign: 'center', padding: '40px' }}>
+              <h3>🎉</h3>
+              <h2 style={{ marginBottom: '16px' }}>Поздравляем!</h2>
+              <p style={{ marginBottom: '24px' }}>
+                Вы ответили на все доступные вопросы! Скоро появятся новые.
+              </p>
+              <button onClick={fetchCurrentQuestion} className="btn btn-primary">
+                Проверить новые вопросы
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="container">
-      <div className="header">
-        <h1>Вопрос дня</h1>
-        <p>Поделись своими мыслями</p>
-      </div>
+    <div className="main-content">
+      <div className="container">
+        <div className="header">
+          <h1>Вопрос для пар</h1>
+          <p>Поделись своими мыслями с партнером</p>
+        </div>
 
-      <div className="card card-elevated fade-in">
-        <h3 style={{ marginBottom: '16px' }}>🤔</h3>
-        <p style={{ fontSize: '18px', lineHeight: '1.5', marginBottom: '24px' }}>
-          {question}
-        </p>
+        <div className="card card-elevated fade-in">
+          <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span className="badge" style={{ backgroundColor: 'var(--tg-theme-accent-text-color)', color: 'white' }}>
+              Вопрос #{question.number}
+            </span>
+            <span className="badge" style={{ backgroundColor: 'var(--tg-theme-secondary-bg-color)' }}>
+              {question.category}
+            </span>
+          </div>
 
-        {!submitted ? (
-          <form onSubmit={handleSubmit}>
-            <div className="form-group">
-              <label htmlFor="answer">Твой ответ:</label>
-              <textarea
-                id="answer"
-                value={answer}
-                onChange={(e) => setAnswer(e.target.value)}
-                placeholder="Напиши свой ответ..."
-                required
-              />
+          <div style={{ marginBottom: '16px' }}>
+            <h3 style={{ marginBottom: '8px' }}>🤔</h3>
+            <p style={{ fontSize: '18px', lineHeight: '1.5', marginBottom: '16px' }}>
+              {question.text}
+            </p>
+            
+            {question.partner_answered && (
+              <div style={{ 
+                padding: '12px', 
+                backgroundColor: 'var(--tg-theme-secondary-bg-color)', 
+                borderRadius: '8px',
+                marginBottom: '16px'
+              }}>
+                <small style={{ color: 'var(--tg-theme-accent-text-color)' }}>
+                  ✅ Ваш партнер уже ответил на этот вопрос
+                </small>
+              </div>
+            )}
+          </div>
+
+          {!submitted && !question.user_answered ? (
+            <form onSubmit={handleSubmit}>
+              <div className="form-group">
+                <label htmlFor="answer">Ваш ответ:</label>
+                <textarea
+                  id="answer"
+                  value={answer}
+                  onChange={(e) => setAnswer(e.target.value)}
+                  placeholder="Поделитесь своими мыслями..."
+                  required
+                  disabled={submitting}
+                  style={{ minHeight: '120px' }}
+                />
+              </div>
+              
+              {error && (
+                <div style={{ 
+                  color: 'var(--tg-theme-destructive-text-color)', 
+                  marginBottom: '16px',
+                  padding: '8px',
+                  backgroundColor: 'rgba(255, 0, 0, 0.1)',
+                  borderRadius: '4px'
+                }}>
+                  {error}
+                </div>
+              )}
+
+              <button 
+                type="submit" 
+                className="btn btn-primary"
+                disabled={submitting || !answer.trim()}
+              >
+                {submitting ? 'Отправляем...' : 'Отправить ответ'}
+              </button>
+            </form>
+          ) : (
+            <div className="success" style={{ textAlign: 'center' }}>
+              <h3>✅ Вы уже ответили на сегодняшний вопрос</h3>
+              <p style={{ marginBottom: '0' }}>
+                Возвращайтесь завтра за новым вопросом.
+              </p>
             </div>
-            <button type="submit" className="btn btn-primary">
-              Отправить ответ
-            </button>
-          </form>
-        ) : (
-          <div className="success">
-            <h3>✅ Ответ отправлен!</h3>
-            <p>Твой партнёр сможет увидеть твой ответ после того, как тоже ответит на вопрос.</p>
+          )}
+        </div>
+
+        {/* Мини‑история последних ответов */}
+        {recent.length > 0 && (
+          <div className="card card-elevated fade-in" style={{ marginTop: '16px' }}>
+            <h3 style={{ marginBottom: '12px' }}>🕑 Недавние ваши ответы</h3>
+            <div style={{ display: 'grid', gap: '8px' }}>
+              {recent.map((r) => (
+                <div key={r.id} onClick={() => fetchAnswers(r.id)} style={{
+                  padding: '10px',
+                  backgroundColor: 'var(--tg-theme-secondary-bg-color)',
+                  borderRadius: '8px',
+                  border: '1px solid var(--tg-theme-hint-color)',
+                  cursor: 'pointer'
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                    <span className="badge" style={{ backgroundColor: 'var(--tg-theme-accent-text-color)', color: 'white' }}>#{r.number}</span>
+                    <span className="badge" style={{ backgroundColor: 'var(--tg-theme-hint-color)', color: 'white' }}>{r.category}</span>
+                  </div>
+                  <div style={{ fontSize: '13px', color: 'var(--tg-theme-hint-color)' }}>
+                    {r.text.length > 90 ? `${r.text.slice(0, 90)}...` : r.text}
+                  </div>
+                  <div style={{ marginTop: '6px', fontSize: '12px' }}>
+                    <span style={{ color: r.user_answered ? 'var(--tg-theme-accent-text-color)' : 'var(--tg-theme-hint-color)' }}>Вы: {r.user_answered ? '✅' : '—'}</span>
+                    <span style={{ marginLeft: 10, color: r.partner_answered ? '#f093fb' : 'var(--tg-theme-hint-color)' }}>Партнер: {r.partner_answered ? '✅' : '—'}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Модальное окно с ответами */}
+        {selected && (
+          <div 
+            role="dialog"
+            aria-modal="true"
+            onClick={() => setSelected(null)}
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(0,0,0,0.45)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 1000,
+              padding: '16px'
+            }}
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                width: '100%',
+                maxWidth: '640px',
+                background: 'var(--tg-theme-bg-color)',
+                borderRadius: '16px',
+                boxShadow: '0 12px 40px rgba(0,0,0,0.35)',
+                border: '1px solid var(--tg-theme-secondary-bg-color)'
+              }}
+            >
+              <div style={{ padding: '16px 16px 0 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <div style={{ fontWeight: 700 }}>Ответы на вопрос #{selected.question.number}</div>
+                  <div style={{ fontSize: '12px', color: 'var(--tg-theme-hint-color)' }}>{selected.question.category}</div>
+                </div>
+                <button className="btn btn-secondary" onClick={() => setSelected(null)}>Закрыть</button>
+              </div>
+              <div style={{ padding: '0 16px 16px 16px' }}>
+                <p style={{ fontSize: '14px', marginTop: '12px' }}>{selected.question.text}</p>
+                <div style={{ display: 'grid', gap: '12px', marginTop: '12px' }}>
+                  {selected.user_answer && (
+                    <div style={{ padding: '12px', background: 'var(--tg-theme-secondary-bg-color)', borderRadius: '8px', border: '2px solid var(--tg-theme-accent-text-color)' }}>
+                      <strong style={{ color: 'var(--tg-theme-accent-text-color)' }}>Ваш ответ</strong>
+                      <div style={{ marginTop: '6px' }}>{selected.user_answer.answer_text}</div>
+                      <small style={{ color: 'var(--tg-theme-hint-color)' }}>{new Date(selected.user_answer.created_at).toLocaleString('ru-RU')}</small>
+                    </div>
+                  )}
+                  {selected.partner_answer ? (
+                    <div style={{ padding: '12px', background: 'var(--tg-theme-secondary-bg-color)', borderRadius: '8px', border: '2px solid #f093fb' }}>
+                      <strong style={{ color: '#f093fb' }}>Ответ {selected.partner_name}</strong>
+                      <div style={{ marginTop: '6px' }}>{selected.partner_answer.answer_text}</div>
+                      <small style={{ color: 'var(--tg-theme-hint-color)' }}>{new Date(selected.partner_answer.created_at).toLocaleString('ru-RU')}</small>
+                    </div>
+                  ) : (
+                    <div style={{ padding: '12px', background: 'var(--tg-theme-secondary-bg-color)', borderRadius: '8px', border: '2px dashed var(--tg-theme-hint-color)', textAlign: 'center' }}>
+                      <strong style={{ color: 'var(--tg-theme-hint-color)' }}>Партнер пока не ответил</strong>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
         )}
       </div>
