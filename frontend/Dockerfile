@@ -52,5 +52,5 @@ ENV BUILD_DATE=${BUILD_DATE}
 ENV BUILD_ID=${BUILD_ID}
 ENV BUILD_MARKER=${BUILD_MARKER}
 
-# Запуск SPA сервера
-CMD ["serve", "-s", "dist", "-l", "3000"]
+# Запуск SPA сервера с выводом маркера билда в логи
+CMD ["sh", "-c", "echo $BUILD_MARKER; echo BUILD_DATE=$BUILD_DATE BUILD_ID=$BUILD_ID; serve -s dist -l 3000"]

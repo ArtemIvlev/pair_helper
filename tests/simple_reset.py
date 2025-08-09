@@ -12,11 +12,11 @@ load_dotenv()
 
 # Конфигурация базы данных
 DB_CONFIG = {
-    'host': '192.168.2.228',
-    'port': 5432,
-    'database': 'pair_helper',
-    'user': 'admin',
-    'password': 'Passw0rd'
+    'host': os.getenv('DB_HOST', '192.168.2.228'),
+    'port': int(os.getenv('DB_PORT', '5432')),
+    'database': os.getenv('DB_NAME', 'pair_helper'),
+    'user': os.getenv('DB_USER', 'admin'),
+    'password': os.getenv('DB_PASSWORD', 'Passw0rd')
 }
 
 def check_data():
@@ -86,41 +86,23 @@ def reset_data():
         # Отключаем проверку внешних ключей
         cursor.execute("SET session_replication_role = replica;")
         
-        # Удаляем данные
-        tables = [
-            'emotion_notes',
-            'calendar_events', 
-            'rituals',
-            'daily_questions',
-            'pairs',
-            'invitations',
-            'users'
-        ]
-        
-        for table in tables:
-            try:
-                cursor.execute(f"DELETE FROM {table};")
-                print(f"✅ Удалено из {table}")
-            except Exception as e:
-                print(f"⚠️  Пропущена таблица {table}: {e}")
-        
-        # Сбрасываем последовательности
-        sequences = [
-            'users_id_seq',
-            'pairs_id_seq', 
-            'invitations_id_seq',
-            'daily_questions_id_seq',
-            'rituals_id_seq',
-            'calendar_events_id_seq',
-            'emotion_notes_id_seq'
-        ]
-        
-        for seq in sequences:
-            try:
-                cursor.execute(f"ALTER SEQUENCE {seq} RESTART WITH 1;")
-                print(f"🔄 Сброшена последовательность {seq}")
-            except Exception as e:
-                print(f"⚠️  Пропущена последовательность {seq}: {e}")
+        # Транкейтим все таблицы public, кроме служебных, с каскадом и сбросом ID
+        cursor.execute(r"""
+DO $$
+DECLARE r record;
+BEGIN
+  FOR r IN 
+    SELECT tablename 
+    FROM pg_tables 
+    WHERE schemaname = 'public' 
+      AND tablename NOT IN ('alembic_version')
+  LOOP
+    EXECUTE 'TRUNCATE TABLE ' || quote_ident(r.tablename) || ' RESTART IDENTITY CASCADE';
+  END LOOP;
+END
+$$;
+""")
+        print("✅ Все таблицы очищены (TRUNCATE ... RESTART IDENTITY CASCADE)")
         
         # Включаем проверку внешних ключей
         cursor.execute("SET session_replication_role = DEFAULT;")

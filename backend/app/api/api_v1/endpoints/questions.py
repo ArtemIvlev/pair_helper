@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_, func
 from datetime import date
 import random
+import httpx
 
 from app.core.database import get_db
 from app.models import User, Pair, Question, UserAnswer, UserQuestionStatus, PairDailyQuestion
@@ -15,6 +16,7 @@ from app.schemas.question import (
     QuestionStatusResponse,
     PairAnswersResponse
 )
+from app.core.config import settings
 
 router = APIRouter()
 
@@ -356,3 +358,94 @@ async def get_questions_stats(
         "both_answered": both_answered,
         "completion_percentage": round(completion_percentage, 1)
     }
+
+
+@router.post("/notify_partner")
+async def notify_partner_to_answer(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Отправить партнёру уведомление в Telegram: «Партнёр ответил, можно отвечать».
+    Доступно, если на сегодня назначен вопрос и текущий пользователь уже ответил, а партнёр — нет.
+    """
+    # Пара пользователя
+    user_pair = db.query(Pair).filter(
+        or_(Pair.user1_id == current_user.id, Pair.user2_id == current_user.id)
+    ).first()
+    if not user_pair:
+        raise HTTPException(status_code=404, detail="У вас пока нет пары")
+
+    partner_id = user_pair.user2_id if user_pair.user1_id == current_user.id else user_pair.user1_id
+    partner = db.query(User).filter(User.id == partner_id).first()
+    if not partner:
+        raise HTTPException(status_code=404, detail="Партнёр не найден")
+
+    # Назначенный на сегодня вопрос
+    today = date.today()
+    todays = db.query(PairDailyQuestion).filter(
+        PairDailyQuestion.pair_id == user_pair.id,
+        PairDailyQuestion.date == today
+    ).first()
+    if not todays:
+        raise HTTPException(status_code=400, detail="На сегодня вопрос не назначен")
+
+    question = db.query(Question).filter(Question.id == todays.question_id).first()
+    if not question:
+        raise HTTPException(status_code=404, detail="Вопрос не найден")
+
+    # Проверяем ответы
+    user_answer = db.query(UserAnswer).filter(
+        UserAnswer.user_id == current_user.id,
+        UserAnswer.question_id == question.id
+    ).first()
+    if not user_answer:
+        raise HTTPException(status_code=400, detail="Сначала ответьте на вопрос")
+
+    partner_answer = db.query(UserAnswer).filter(
+        UserAnswer.user_id == partner_id,
+        UserAnswer.question_id == question.id
+    ).first()
+    if partner_answer:
+        return {"ok": True, "message": "Партнёр уже ответил"}
+
+    # Отправка сообщения через Telegram Bot API
+    bot_token = settings.TELEGRAM_BOT_TOKEN
+    if not bot_token:
+        raise HTTPException(status_code=500, detail="Bot token не настроен")
+
+    webapp_url = settings.TELEGRAM_WEBAPP_URL or "https://gallery.homoludens.photos/pulse_of_pair/"
+    text = (
+        f"Ваш партнёр {current_user.first_name or ''} ответил на вопрос дня.\n"
+        f"Откройте Pair Helper и ответьте тоже."
+    ).strip()
+
+    api_url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+    reply_markup = {
+        "inline_keyboard": [[
+            {"text": "Открыть Pair Helper", "web_app": {"url": webapp_url}}
+        ]]
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            resp = await client.post(api_url, json={
+                "chat_id": partner.telegram_id,
+                "text": text,
+                "reply_markup": reply_markup
+            })
+            if resp.status_code != 200:
+                # Фолбэк: обычная URL кнопка
+                fallback = {
+                    "inline_keyboard": [[
+                        {"text": "Открыть Pair Helper", "url": webapp_url}
+                    ]]
+                }
+                await client.post(api_url, json={
+                    "chat_id": partner.telegram_id,
+                    "text": text,
+                    "reply_markup": fallback
+                })
+    except Exception:
+        raise HTTPException(status_code=502, detail="Не удалось отправить уведомление в Telegram")
+
+    return {"ok": True}

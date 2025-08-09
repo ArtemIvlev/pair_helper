@@ -168,32 +168,30 @@ def reset_database():
     if not endpoint_id:
         return False
     
-    # SQL команды для очистки данных
+    # Универсальная очистка: TRUNCATE всех таблиц public (кроме служебных),
+    # сброс идентификаторов и каскад для внешних ключей
     sql_commands = [
-        "DELETE FROM emotion_notes;",
-        "DELETE FROM calendar_events;",
-        "DELETE FROM rituals;",
-        "DELETE FROM daily_questions;",
-        "DELETE FROM mood_entries;",
-        "DELETE FROM female_cycle_entries;",
-        "DELETE FROM pairs;",
-        "DELETE FROM invitations;",
-        "DELETE FROM users;",
-        "ALTER SEQUENCE users_id_seq RESTART WITH 1;",
-        "ALTER SEQUENCE pairs_id_seq RESTART WITH 1;",
-        "ALTER SEQUENCE invitations_id_seq RESTART WITH 1;",
-        "ALTER SEQUENCE daily_questions_id_seq RESTART WITH 1;",
-        "ALTER SEQUENCE mood_entries_id_seq RESTART WITH 1;",
-        "ALTER SEQUENCE female_cycle_entries_id_seq RESTART WITH 1;",
-        "ALTER SEQUENCE rituals_id_seq RESTART WITH 1;",
-        "ALTER SEQUENCE calendar_events_id_seq RESTART WITH 1;",
-        "ALTER SEQUENCE emotion_notes_id_seq RESTART WITH 1;"
+        r"""
+DO $$
+DECLARE r record;
+BEGIN
+  FOR r IN 
+    SELECT tablename 
+    FROM pg_tables 
+    WHERE schemaname = 'public' 
+      AND tablename NOT IN ('alembic_version')
+  LOOP
+    EXECUTE 'TRUNCATE TABLE ' || quote_ident(r.tablename) || ' RESTART IDENTITY CASCADE';
+  END LOOP;
+END
+$$;
+"""
     ]
     
     print("🧹 Выполняем очистку данных...")
     
     for i, sql in enumerate(sql_commands, 1):
-        print(f"  {i:2d}. {sql}")
+        print(f"  {i:2d}. Выполняем блок очистки...")
         if not execute_sql_command(token, endpoint_id, sql):
             print(f"❌ Ошибка при выполнении команды {i}")
             return False

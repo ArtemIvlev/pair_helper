@@ -25,6 +25,8 @@ const DailyQuestion: React.FC = () => {
     partner_answer: { id: number; question_id: number; answer_text: string; created_at: string } | null
     partner_name: string
   }>(null)
+  const [notifying, setNotifying] = useState(false)
+  const [notifySuccess, setNotifySuccess] = useState<string>('')
 
   const fetchCurrentQuestion = async () => {
     try {
@@ -93,6 +95,37 @@ const DailyQuestion: React.FC = () => {
         setRecent(mapped)
       }
     } catch {}
+  }
+
+  const notifyPartner = async () => {
+    try {
+      setNotifySuccess('')
+      setError('')
+      setNotifying(true)
+      const initData = (window as any).Telegram?.WebApp?.initData
+      if (!initData) {
+        setError('Ошибка аутентификации')
+        return
+      }
+      const resp = await fetch('/pulse_of_pair/api/v1/questions/notify_partner', {
+        method: 'POST',
+        headers: {
+          'X-Telegram-Init-Data': initData,
+          'Content-Type': 'application/json'
+        }
+      })
+      if (resp.ok) {
+        const data = await resp.json()
+        setNotifySuccess(data.message || 'Уведомление отправлено')
+      } else {
+        const err = await resp.json().catch(() => ({}))
+        setError(err.detail || 'Не удалось отправить уведомление')
+      }
+    } catch (e) {
+      setError('Ошибка соединения при отправке уведомления')
+    } finally {
+      setNotifying(false)
+    }
   }
 
   const fetchAnswers = async (questionId: number) => {
@@ -220,10 +253,7 @@ const DailyQuestion: React.FC = () => {
         </div>
 
         <div className="card card-elevated fade-in">
-          <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span className="badge" style={{ backgroundColor: 'var(--tg-theme-accent-text-color)', color: 'white' }}>
-              Вопрос #{question.number}
-            </span>
+          <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
             <span className="badge" style={{ backgroundColor: 'var(--tg-theme-secondary-bg-color)' }}>
               {question.category}
             </span>
@@ -287,9 +317,22 @@ const DailyQuestion: React.FC = () => {
           ) : (
             <div className="success" style={{ textAlign: 'center' }}>
               <h3>✅ Вы уже ответили на сегодняшний вопрос</h3>
-              <p style={{ marginBottom: '0' }}>
-                Возвращайтесь завтра за новым вопросом.
-              </p>
+              <p style={{ marginBottom: '12px' }}>Возвращайтесь завтра за новым вопросом.</p>
+              {/* Кнопка уведомить партнёра, если он ещё не ответил */}
+              {question && question.user_answered && !question.partner_answered && (
+                <div>
+                  <button 
+                    onClick={notifyPartner}
+                    className="btn btn-primary"
+                    disabled={notifying}
+                  >
+                    {notifying ? 'Отправляем...' : 'Напомнить партнёру ответить'}
+                  </button>
+                  {notifySuccess && (
+                    <div style={{ marginTop: 8, color: 'var(--tg-theme-accent-text-color)' }}>{notifySuccess}</div>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -307,8 +350,7 @@ const DailyQuestion: React.FC = () => {
                   border: '1px solid var(--tg-theme-hint-color)',
                   cursor: 'pointer'
                 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
-                    <span className="badge" style={{ backgroundColor: 'var(--tg-theme-accent-text-color)', color: 'white' }}>#{r.number}</span>
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '6px' }}>
                     <span className="badge" style={{ backgroundColor: 'var(--tg-theme-hint-color)', color: 'white' }}>{r.category}</span>
                   </div>
                   <div style={{ fontSize: '13px', color: 'var(--tg-theme-hint-color)' }}>
@@ -354,7 +396,7 @@ const DailyQuestion: React.FC = () => {
             >
               <div style={{ padding: '16px 16px 0 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
-                  <div style={{ fontWeight: 700 }}>Ответы на вопрос #{selected.question.number}</div>
+                  <div style={{ fontWeight: 700 }}>Ответы на вопрос дня</div>
                   <div style={{ fontSize: '12px', color: 'var(--tg-theme-hint-color)' }}>{selected.question.category}</div>
                 </div>
                 <button className="btn btn-secondary" onClick={() => setSelected(null)}>Закрыть</button>
