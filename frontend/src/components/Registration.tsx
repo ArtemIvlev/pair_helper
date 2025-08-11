@@ -196,30 +196,64 @@ const Registration: React.FC<RegistrationProps> = ({ user, onRegistrationComplet
             <h3>Соглашения</h3>
             
             <div className="form-group" style={{ marginBottom: '16px' }}>
-              <label style={{ display: 'flex', alignItems: 'flex-start', cursor: 'pointer' }}>
+              <label style={{ 
+                display: 'flex', 
+                alignItems: 'flex-start', 
+                cursor: 'pointer',
+                wordWrap: 'break-word',
+                overflowWrap: 'break-word'
+              }}>
                 <input
                   type="checkbox"
                   name="acceptTerms"
                   checked={formData.acceptTerms}
                   onChange={handleInputChange}
-                  style={{ marginRight: '12px', marginTop: '2px' }}
+                  style={{ 
+                    marginRight: '12px', 
+                    marginTop: '2px',
+                    flexShrink: 0,
+                    minWidth: '16px'
+                  }}
                 />
-                <span style={{ fontSize: '14px', lineHeight: '1.4' }}>
+                <span style={{ 
+                  fontSize: '14px', 
+                  lineHeight: '1.4',
+                  wordBreak: 'break-word',
+                  overflowWrap: 'break-word',
+                  hyphens: 'auto'
+                }}>
                   Я принимаю <strong>Пользовательское соглашение</strong> и соглашаюсь с правилами использования приложения
                 </span>
               </label>
             </div>
 
             <div className="form-group">
-              <label style={{ display: 'flex', alignItems: 'flex-start', cursor: 'pointer' }}>
+              <label style={{ 
+                display: 'flex', 
+                alignItems: 'flex-start', 
+                cursor: 'pointer',
+                wordWrap: 'break-word',
+                overflowWrap: 'break-word'
+              }}>
                 <input
                   type="checkbox"
                   name="acceptPrivacy"
                   checked={formData.acceptPrivacy}
                   onChange={handleInputChange}
-                  style={{ marginRight: '12px', marginTop: '2px' }}
+                  style={{ 
+                    marginRight: '12px', 
+                    marginTop: '2px',
+                    flexShrink: 0,
+                    minWidth: '16px'
+                  }}
                 />
-                <span style={{ fontSize: '14px', lineHeight: '1.4' }}>
+                <span style={{ 
+                  fontSize: '14px', 
+                  lineHeight: '1.4',
+                  wordBreak: 'break-word',
+                  overflowWrap: 'break-word',
+                  hyphens: 'auto'
+                }}>
                   Я даю согласие на <strong>обработку персональных данных</strong> в соответствии с Политикой конфиденциальности
                 </span>
               </label>

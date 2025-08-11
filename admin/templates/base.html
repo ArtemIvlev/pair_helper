@@ -69,6 +69,11 @@
                             </a>
                         </li>
                         <li class="nav-item">
+                            <a class="nav-link {% if 'tune' in request.endpoint %}active{% endif %}" href="{{ url_for('tune_questions') }}">
+                                <i class="bi bi-stars"></i> Сонастройка
+                            </a>
+                        </li>
+                        <li class="nav-item">
                             <a class="nav-link {% if 'feedback' in request.endpoint %}active{% endif %}" href="{{ url_for('feedback_list') }}">
                                 <i class="bi bi-chat-dots"></i> Обратная связь
                             </a>

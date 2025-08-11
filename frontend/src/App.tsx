@@ -10,6 +10,7 @@ import Mood from './components/Mood'
 import Settings from './components/Settings'
 import Navigation from './components/Navigation'
 import Registration from './components/Registration'
+import Tune from './components/Tune'
 
 // Типы
 declare global {
@@ -289,6 +290,7 @@ function AppContent({ user, isFullscreen, navigateToQuestion, setNavigateToQuest
       <Routes>
         <Route path="/pulse_of_pair/" element={<Home user={user} />} />
         <Route path="/pulse_of_pair/question" element={<DailyQuestion />} />
+        <Route path="/pulse_of_pair/tune" element={<Tune />} />
         <Route path="/pulse_of_pair/mood" element={<Mood />} />
         <Route path="/pulse_of_pair/settings" element={<Settings user={user} />} />
         <Route path="*" element={<Navigate to="/pulse_of_pair/" replace />} />

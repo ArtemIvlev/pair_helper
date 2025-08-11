@@ -4,7 +4,8 @@ import {
   Home, 
   MessageCircle, 
   Heart, 
-  Settings 
+  Settings,
+  Sparkles
 } from 'lucide-react'
 
 const Navigation: React.FC = () => {
@@ -14,6 +15,7 @@ const Navigation: React.FC = () => {
   const navItems = [
     { path: '/pulse_of_pair/', icon: Home, label: 'Главная' },
     { path: '/pulse_of_pair/question', icon: MessageCircle, label: 'Вопрос' },
+    { path: '/pulse_of_pair/tune', icon: Sparkles, label: 'Сонастройка' },
     { path: '/pulse_of_pair/mood', icon: Heart, label: 'Настроение' },
     { path: '/pulse_of_pair/settings', icon: Settings, label: 'Настройки' },
   ]

@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block title %}Загрузка вопросов Сонастройки{% endblock %}
+
+{% block content %}
+<div class="container">
+  <h1 class="mb-4">Загрузка вопросов Сонастройки из Excel</h1>
+
+  <div class="card">
+    <div class="card-body">
+      <form method="POST" enctype="multipart/form-data">
+        <div class="mb-3">
+          <label class="form-label">Выберите Excel файл (.xlsx/.xls)</label>
+          <input class="form-control" type="file" name="file" accept=".xlsx,.xls" required />
+        </div>
+        <button type="submit" class="btn btn-primary">Загрузить</button>
+        <a class="btn btn-secondary" href="{{ url_for('tune_questions') }}">Отмена</a>
+      </form>
+
+      <hr>
+      <div>
+        <h5>Требуемый формат столбцов</h5>
+        <ul>
+          <li><code>номер</code> — необязательный (целое)</li>
+          <li><code>вопрос про партнёра</code> — формулировка о партнёре (обязательно)</li>
+          <li><code>вопрос про себя</code> — формулировка о себе (обязательно)</li>
+          <li><code>тематика</code> — категория (обязательно)</li>
+          <li><code>вариант1</code>, <code>вариант2</code>, <code>вариант3</code>, <code>вариант4</code> — четыре варианта ответа (обязательно)</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+

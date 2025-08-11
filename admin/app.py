@@ -7,6 +7,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 from datetime import datetime
 from dotenv import load_dotenv
+from sqlalchemy import Enum as SAEnum
 
 
 load_dotenv()
@@ -201,6 +202,189 @@ class Feedback(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     user = db.relationship('User')
+
+# ===== Сонастройка (банк вопросов с вариантами) =====
+class TuneQuestionType(str):
+    TEXT = 'text'
+    MCQ = 'mcq'
+
+
+class TuneQuizQuestion(db.Model):
+    __tablename__ = 'tune_quiz_questions'
+
+    id = db.Column(db.Integer, primary_key=True)
+    number = db.Column(db.Integer, unique=True, nullable=True)
+    text = db.Column(db.Text)
+    text_about_partner = db.Column(db.Text)
+    text_about_self = db.Column(db.Text)
+    category = db.Column(db.String(100), nullable=False)
+    question_type = db.Column(db.String, nullable=False, default='mcq')
+    option1 = db.Column(db.String)
+    option2 = db.Column(db.String)
+    option3 = db.Column(db.String)
+    option4 = db.Column(db.String)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+@app.route('/tune/questions')
+@login_required
+def tune_questions():
+    page = request.args.get('page', 1, type=int)
+    category_filter = request.args.get('category', '')
+    q = TuneQuizQuestion.query
+    if category_filter:
+        q = q.filter(TuneQuizQuestion.category.ilike(f"%{category_filter}%"))
+    items = q.order_by(TuneQuizQuestion.number.nullslast(), TuneQuizQuestion.id).paginate(page=page, per_page=20, error_out=False)
+    categories = db.session.query(TuneQuizQuestion.category).distinct().all()
+    categories = [c[0] for c in categories]
+    return render_template('tune_questions.html', items=items, categories=categories, current_category=category_filter)
+
+
+@app.route('/tune/questions/add', methods=['GET', 'POST'])
+@login_required
+def tune_add_question():
+    if request.method == 'POST':
+        number = request.form.get('number')
+        text = request.form.get('text', '').strip()
+        text_about_partner = request.form.get('text_about_partner', '').strip()
+        text_about_self = request.form.get('text_about_self', '').strip()
+        category = request.form.get('category', '').strip()
+        qtype = request.form.get('question_type', 'mcq')
+        option1 = request.form.get('option1', '').strip()
+        option2 = request.form.get('option2', '').strip()
+        option3 = request.form.get('option3', '').strip()
+        option4 = request.form.get('option4', '').strip()
+
+        if qtype == 'mcq' and (not option1 or not option2 or not option3 or not option4):
+            flash('Для MCQ нужно заполнить 4 варианта', 'error')
+            return render_template('tune_question_form.html', item=None, action='add')
+
+        item = TuneQuizQuestion(
+            number=int(number) if number else None,
+            text=text,
+            text_about_partner=text_about_partner or None,
+            text_about_self=text_about_self or None,
+            category=category,
+            question_type=qtype,
+            option1=option1 or None,
+            option2=option2 or None,
+            option3=option3 or None,
+            option4=option4 or None,
+        )
+        db.session.add(item)
+        db.session.commit()
+        flash('Вопрос добавлен', 'success')
+        return redirect(url_for('tune_questions'))
+
+    return render_template('tune_question_form.html', item=None, action='add')
+
+
+@app.route('/tune/questions/edit/<int:item_id>', methods=['GET', 'POST'])
+@login_required
+def tune_edit_question(item_id):
+    item = TuneQuizQuestion.query.get_or_404(item_id)
+    if request.method == 'POST':
+        number = request.form.get('number')
+        item.number = int(number) if number else None
+        item.text = request.form.get('text', '').strip() or None
+        item.text_about_partner = request.form.get('text_about_partner', '').strip() or None
+        item.text_about_self = request.form.get('text_about_self', '').strip() or None
+        item.category = request.form.get('category', '').strip()
+        qtype = request.form.get('question_type', 'mcq')
+        item.question_type = qtype
+        item.option1 = request.form.get('option1', '').strip() or None
+        item.option2 = request.form.get('option2', '').strip() or None
+        item.option3 = request.form.get('option3', '').strip() or None
+        item.option4 = request.form.get('option4', '').strip() or None
+
+        if item.question_type == 'mcq' and (not item.option1 or not item.option2 or not item.option3 or not item.option4):
+            flash('Для MCQ нужно заполнить 4 варианта', 'error')
+            return render_template('tune_question_form.html', item=item, action='edit')
+
+        db.session.commit()
+        flash('Вопрос обновлён', 'success')
+        return redirect(url_for('tune_questions'))
+
+    return render_template('tune_question_form.html', item=item, action='edit')
+
+
+@app.route('/tune/questions/delete/<int:item_id>', methods=['POST'])
+@login_required
+def tune_delete_question(item_id):
+    item = TuneQuizQuestion.query.get_or_404(item_id)
+    db.session.delete(item)
+    db.session.commit()
+    flash('Вопрос удалён', 'success')
+    return redirect(url_for('tune_questions'))
+
+
+@app.route('/tune/questions/upload', methods=['GET', 'POST'])
+@login_required
+def tune_upload_questions():
+    if request.method == 'POST':
+        if 'file' not in request.files:
+            flash('Файл не выбран', 'error')
+            return redirect(request.url)
+
+        file = request.files['file']
+        if file.filename == '':
+            flash('Файл не выбран', 'error')
+            return redirect(request.url)
+
+        if file and file.filename.lower().endswith(('.xlsx', '.xls')):
+            try:
+                df = pd.read_excel(file)
+                df.columns = df.columns.str.lower().str.strip()
+                # Нормализация альтернативных заголовков
+                rename_map = {}
+                if '№' in df.columns and 'номер' not in df.columns:
+                    rename_map['№'] = 'номер'
+                if 'вопрос про партнера' in df.columns and 'вопрос про партнёра' not in df.columns:
+                    rename_map['вопрос про партнера'] = 'вопрос про партнёра'
+                if rename_map:
+                    df.rename(columns=rename_map, inplace=True)
+
+                required_columns = ['номер', 'вопрос про партнёра', 'вопрос про себя', 'тематика', 'вариант1', 'вариант2', 'вариант3', 'вариант4']
+                missing = [c for c in required_columns if c not in df.columns]
+                if missing:
+                    flash(f"В файле отсутствуют колонки: {', '.join(missing)}", 'error')
+                    return render_template('upload_tune_questions.html')
+
+                # Очищаем существующие tune-вопросы
+                TuneQuizQuestion.query.delete()
+
+                added = 0
+                for _, row in df.iterrows():
+                    if pd.isna(row['вопрос про партнёра']) or pd.isna(row['вопрос про себя']) or pd.isna(row['тематика']):
+                        continue
+                    if any(pd.isna(row[col]) for col in ['вариант1','вариант2','вариант3','вариант4']):
+                        continue
+
+                    item = TuneQuizQuestion(
+                        number=int(row['номер']) if ('номер' in df.columns and pd.notna(row['номер'])) else None,
+                        text=None,
+                        text_about_partner=str(row['вопрос про партнёра']).strip(),
+                        text_about_self=str(row['вопрос про себя']).strip(),
+                        category=str(row['тематика']).strip(),
+                        question_type='mcq',
+                        option1=str(row['вариант1']).strip(),
+                        option2=str(row['вариант2']).strip(),
+                        option3=str(row['вариант3']).strip(),
+                        option4=str(row['вариант4']).strip(),
+                    )
+                    db.session.add(item)
+                    added += 1
+
+                db.session.commit()
+                flash(f'Успешно загружено {added} вопросов Сонастройки', 'success')
+                return redirect(url_for('tune_questions'))
+            except Exception as e:
+                flash(f'Ошибка при обработке файла: {str(e)}', 'error')
+                return render_template('upload_tune_questions.html')
+        else:
+            flash('Пожалуйста, загрузите файл Excel (.xlsx или .xls)', 'error')
+
+    return render_template('upload_tune_questions.html')
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -450,6 +634,17 @@ if __name__ == '__main__':
         AdminUser.__table__.create(db.engine, checkfirst=True)
         Question.__table__.create(db.engine, checkfirst=True)
         Feedback.__table__.create(db.engine, checkfirst=True)
+        TuneQuizQuestion.__table__.create(db.engine, checkfirst=True)
+
+        # Обновление схемы для tune_quiz_questions — добавляем недостающие колонки (PostgreSQL)
+        try:
+            with db.engine.connect() as conn:
+                conn.execute(db.text("ALTER TABLE IF EXISTS tune_quiz_questions ADD COLUMN IF NOT EXISTS text_about_partner TEXT"))
+                conn.execute(db.text("ALTER TABLE IF EXISTS tune_quiz_questions ADD COLUMN IF NOT EXISTS text_about_self TEXT"))
+                conn.execute(db.text("ALTER TABLE IF EXISTS tune_quiz_questions ALTER COLUMN text DROP NOT NULL"))
+                conn.commit()
+        except Exception as e:
+            print(f"Ошибка обновления схемы tune_quiz_questions: {e}")
         
         # Создаем админа по умолчанию если его нет
         if not AdminUser.query.filter_by(username='admin').first():

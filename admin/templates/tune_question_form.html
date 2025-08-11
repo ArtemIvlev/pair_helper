@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block title %}{% if action == 'add' %}Добавить{% else %}Редактировать{% endif %} — Сонастройка{% endblock %}
+
+{% block content %}
+<div class="container">
+  <h1 class="mb-4">{% if action == 'add' %}Добавить{% else %}Редактировать{% endif %} вопрос</h1>
+
+  <div class="card">
+    <div class="card-body">
+      <form method="POST">
+        <div class="row g-3">
+          <div class="col-md-3">
+            <label class="form-label">Номер</label>
+            <input name="number" type="number" class="form-control" value="{{ item.number if item else '' }}" placeholder="необязательно" />
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Категория</label>
+            <input name="category" class="form-control" value="{{ item.category if item else '' }}" required />
+          </div>
+          <div class="col-md-5">
+            <label class="form-label">Тип</label>
+            <select name="question_type" class="form-select">
+              <option value="mcq" {% if (item and item.question_type=='mcq') or not item %}selected{% endif %}>MCQ (выбор 1 из 4)</option>
+              <option value="text" {% if item and item.question_type=='text' %}selected{% endif %}>Текст</option>
+            </select>
+          </div>
+          <div class="col-12">
+            <label class="form-label">Общий текст (опционально)</label>
+            <textarea name="text" class="form-control" rows="2">{{ item.text if item else '' }}</textarea>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Вопрос про партнёра</label>
+            <textarea name="text_about_partner" class="form-control" rows="3">{{ item.text_about_partner if item else '' }}</textarea>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Вопрос про себя</label>
+            <textarea name="text_about_self" class="form-control" rows="3">{{ item.text_about_self if item else '' }}</textarea>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Вариант 1</label>
+            <input name="option1" class="form-control" value="{{ item.option1 if item else '' }}" />
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Вариант 2</label>
+            <input name="option2" class="form-control" value="{{ item.option2 if item else '' }}" />
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Вариант 3</label>
+            <input name="option3" class="form-control" value="{{ item.option3 if item else '' }}" />
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Вариант 4</label>
+            <input name="option4" class="form-control" value="{{ item.option4 if item else '' }}" />
+          </div>
+        </div>
+        <div class="mt-4 d-flex gap-2">
+          <button class="btn btn-primary" type="submit">Сохранить</button>
+          <a class="btn btn-secondary" href="{{ url_for('tune_questions') }}">Отмена</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+

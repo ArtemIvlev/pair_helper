@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+
+{% block title %}Сонастройка — вопросы{% endblock %}
+
+{% block content %}
+<div class="container">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>Сонастройка — вопросы</h1>
+    <div class="d-flex gap-2">
+      <a href="{{ url_for('tune_upload_questions') }}" class="btn btn-outline-primary">Загрузить из Excel</a>
+      <a href="{{ url_for('tune_add_question') }}" class="btn btn-primary">Добавить вопрос</a>
+    </div>
+  </div>
+
+  <div class="card mb-3">
+    <div class="card-body">
+      <form method="GET" class="row">
+        <div class="col-md-6">
+          <label class="form-label">Категория</label>
+          <select name="category" class="form-select">
+            <option value="">Все</option>
+            {% for c in categories %}
+            <option value="{{ c }}" {% if current_category == c %}selected{% endif %}>{{ c }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-3 d-flex align-items-end">
+          <button class="btn btn-secondary me-2" type="submit">Фильтр</button>
+          <a href="{{ url_for('tune_questions') }}" class="btn btn-outline-secondary">Сброс</a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-body">
+      {% if items.items %}
+      <div class="table-responsive">
+        <table class="table table-hover">
+          <thead>
+          <tr>
+            <th>#</th>
+            <th>Категория</th>
+            <th>Тип</th>
+            <th>Текст</th>
+            <th>Опции</th>
+            <th></th>
+          </tr>
+          </thead>
+          <tbody>
+          {% for it in items.items %}
+          <tr>
+            <td>{{ it.number or '—' }}</td>
+            <td>{{ it.category }}</td>
+            <td>{% if it.question_type == 'mcq' %}MCQ{% else %}Текст{% endif %}</td>
+            <td><div class="text-truncate" style="max-width: 260px" title="{{ it.text }}">{{ it.text }}</div></td>
+            <td>
+              {% if it.question_type == 'mcq' %}
+                <small class="text-muted">1)</small> {{ it.option1 }}<br>
+                <small class="text-muted">2)</small> {{ it.option2 }}<br>
+                <small class="text-muted">3)</small> {{ it.option3 }}<br>
+                <small class="text-muted">4)</small> {{ it.option4 }}
+              {% else %}
+                —
+              {% endif %}
+            </td>
+            <td class="text-end">
+              <a class="btn btn-sm btn-primary" href="{{ url_for('tune_edit_question', item_id=it.id) }}">Править</a>
+              <form method="POST" action="{{ url_for('tune_delete_question', item_id=it.id) }}" style="display:inline" onsubmit="return confirm('Удалить вопрос?')">
+                <button class="btn btn-sm btn-danger" type="submit">Удалить</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      {% if items.pages > 1 %}
+      <nav aria-label="Навигация страниц">
+        <ul class="pagination justify-content-center">
+          {% if items.has_prev %}
+          <li class="page-item"><a class="page-link" href="{{ url_for('tune_questions', page=items.prev_num, category=current_category) }}">Предыдущая</a></li>
+          {% endif %}
+          {% for page_num in items.iter_pages() %}
+            {% if page_num %}
+              {% if page_num != items.page %}
+                <li class="page-item"><a class="page-link" href="{{ url_for('tune_questions', page=page_num, category=current_category) }}">{{ page_num }}</a></li>
+              {% else %}
+                <li class="page-item active"><span class="page-link">{{ page_num }}</span></li>
+              {% endif %}
+            {% else %}
+              <li class="page-item disabled"><span class="page-link">...</span></li>
+            {% endif %}
+          {% endfor %}
+          {% if items.has_next %}
+          <li class="page-item"><a class="page-link" href="{{ url_for('tune_questions', page=items.next_num, category=current_category) }}">Следующая</a></li>
+          {% endif %}
+        </ul>
+      </nav>
+      {% endif %}
+      {% else %}
+      <div class="text-center text-muted">Пока нет вопросов</div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+

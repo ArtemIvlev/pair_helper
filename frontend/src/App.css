@@ -582,3 +582,39 @@ h1:last-child, h2:last-child, h3:last-child, h4:last-child, h5:last-child, h6:la
   color: var(--text-primary);
   line-height: 1.4;
 }
+
+/* ===== Mobile-specific styles ===== */
+@media (max-width: 768px) {
+  .form-group label {
+    font-size: 14px;
+    line-height: 1.4;
+  }
+  
+  .form-group input[type="checkbox"] {
+    min-width: 16px;
+    min-height: 16px;
+    flex-shrink: 0;
+  }
+  
+  /* Ensure text wraps properly on mobile */
+  .form-group label span {
+    word-break: break-word;
+    overflow-wrap: break-word;
+    hyphens: auto;
+    display: block;
+    width: 100%;
+  }
+  
+  /* Improve container padding on mobile */
+  .container {
+    padding: 12px;
+  }
+  
+  /* Better text wrapping for long content */
+  .card h3,
+  .card p,
+  .card span {
+    word-break: break-word;
+    overflow-wrap: break-word;
+  }
+}
