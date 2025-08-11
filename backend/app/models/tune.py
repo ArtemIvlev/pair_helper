@@ -18,7 +18,7 @@ class PairDailyTuneQuestion(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     pair_id = Column(Integer, ForeignKey("pairs.id"), nullable=False)
-    question_id = Column(Integer, ForeignKey("questions.id"), nullable=False)
+    question_id = Column(Integer, ForeignKey("tune_quiz_questions.id"), nullable=False)
     date = Column(Date, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
@@ -42,7 +42,7 @@ class TuneAnswer(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     pair_id = Column(Integer, ForeignKey("pairs.id"), nullable=False)
-    question_id = Column(Integer, ForeignKey("questions.id"), nullable=False)
+    question_id = Column(Integer, ForeignKey("tune_quiz_questions.id"), nullable=False)
     author_user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     subject_user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     answer_text = Column(Text, nullable=False)
