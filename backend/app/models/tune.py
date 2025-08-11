@@ -27,7 +27,7 @@ class PairDailyTuneQuestion(Base):
     )
 
     pair = relationship("Pair")
-    question = relationship("Question")
+    question = relationship("TuneQuizQuestion")
 
     def __repr__(self) -> str:
         return f"<PairDailyTuneQuestion(pair_id={self.pair_id}, question_id={self.question_id}, date={self.date})>"
@@ -54,7 +54,7 @@ class TuneAnswer(Base):
     )
 
     pair = relationship("Pair")
-    question = relationship("Question")
+    question = relationship("TuneQuizQuestion")
 
     def __repr__(self) -> str:
         return (
