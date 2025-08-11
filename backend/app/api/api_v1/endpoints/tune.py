@@ -1,12 +1,14 @@
 from datetime import date
 import random
 from typing import Optional
+import httpx
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy import or_, and_, func
 
 from app.core.database import get_db
+from app.core.config import settings
 from app.models import User, Pair
 from app.models.tune import PairDailyTuneQuestion, TuneAnswer, TuneQuizQuestion
 from app.services.auth import get_current_user
@@ -264,3 +266,100 @@ def get_tune_answers(
     )
 
 
+@router.post("/notify_partner")
+async def notify_partner_to_answer_tune(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Отправить партнёру уведомление в Telegram о квизе Сонастройка.
+    Доступно, если на сегодня назначен вопрос и текущий пользователь уже ответил, а партнёр — нет.
+    """
+    # Пара пользователя
+    user_pair = db.query(Pair).filter(
+        or_(Pair.user1_id == current_user.id, Pair.user2_id == current_user.id)
+    ).first()
+    if not user_pair:
+        raise HTTPException(status_code=404, detail="У вас пока нет пары")
+
+    partner_id = user_pair.user2_id if user_pair.user1_id == current_user.id else user_pair.user1_id
+    partner = db.query(User).filter(User.id == partner_id).first()
+    if not partner:
+        raise HTTPException(status_code=404, detail="Партнёр не найден")
+
+    # Назначенный на сегодня вопрос
+    today = date.today()
+    todays = db.query(PairDailyTuneQuestion).filter(
+        PairDailyTuneQuestion.pair_id == user_pair.id,
+        PairDailyTuneQuestion.date == today
+    ).first()
+    if not todays:
+        raise HTTPException(status_code=400, detail="На сегодня вопрос не назначен")
+
+    question = db.query(TuneQuizQuestion).filter(TuneQuizQuestion.id == todays.question_id).first()
+    if not question:
+        raise HTTPException(status_code=404, detail="Вопрос не найден")
+
+    # Проверяем ответы пользователя
+    user_answers = db.query(TuneAnswer).filter(
+        TuneAnswer.pair_id == user_pair.id,
+        TuneAnswer.question_id == question.id,
+        TuneAnswer.author_user_id == current_user.id
+    ).all()
+    
+    if len(user_answers) < 2:
+        raise HTTPException(status_code=400, detail="Сначала ответьте на оба вопроса")
+
+    # Проверяем ответы партнера
+    partner_answers = db.query(TuneAnswer).filter(
+        TuneAnswer.pair_id == user_pair.id,
+        TuneAnswer.question_id == question.id,
+        TuneAnswer.author_user_id == partner_id
+    ).all()
+    
+    if len(partner_answers) >= 2:
+        return {"ok": True, "message": "Партнёр уже ответил"}
+
+    # Отправка сообщения через Telegram Bot API
+    bot_token = settings.TELEGRAM_BOT_TOKEN
+    if not bot_token:
+        raise HTTPException(status_code=500, detail="Bot token не настроен")
+
+    # Создаём диплинк на страницу Сонастройки
+    webapp_base_url = settings.TELEGRAM_WEBAPP_URL or "https://gallery.homoludens.photos/pulse_of_pair/"
+    webapp_url = f"{webapp_base_url}?tgWebAppStartParam=tune"
+    
+    text = (
+        f"Ваш партнёр {current_user.first_name or ''} ответил на квиз Сонастройка.\n"
+        f"Откройте Пульс ваших отношений и ответьте тоже."
+    ).strip()
+
+    api_url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+    reply_markup = {
+        "inline_keyboard": [[
+            {"text": "Ответить на квиз", "web_app": {"url": webapp_url}}
+        ]]
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            resp = await client.post(api_url, json={
+                "chat_id": partner.telegram_id,
+                "text": text,
+                "reply_markup": reply_markup
+            })
+            if resp.status_code != 200:
+                # Фолбэк: обычная URL кнопка
+                fallback = {
+                    "inline_keyboard": [[
+                        {"text": "Ответить на квиз", "url": webapp_url}
+                    ]]
+                }
+                await client.post(api_url, json={
+                    "chat_id": partner.telegram_id,
+                    "text": text,
+                    "reply_markup": fallback
+                })
+    except Exception:
+        raise HTTPException(status_code=502, detail="Не удалось отправить уведомление в Telegram")
+
+    return {"ok": True, "message": "Уведомление отправлено"}

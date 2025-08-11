@@ -45,6 +45,8 @@ const Tune: React.FC = () => {
   const [submittingMe, setSubmittingMe] = useState(false)
   const [submittingPartner, setSubmittingPartner] = useState(false)
   const [answersData, setAnswersData] = useState<TuneAnswersResponse | null>(null)
+  const [notifying, setNotifying] = useState(false)
+  const [notifySuccess, setNotifySuccess] = useState('')
 
   const loadCurrent = async () => {
     try {
@@ -117,6 +119,37 @@ const Tune: React.FC = () => {
       setError('Ошибка соединения')
     } finally {
       about === 'me' ? setSubmittingMe(false) : setSubmittingPartner(false)
+    }
+  }
+
+  const notifyPartner = async () => {
+    try {
+      setNotifySuccess('')
+      setError('')
+      setNotifying(true)
+      const initData = (window as any).Telegram?.WebApp?.initData
+      if (!initData) {
+        setError('Ошибка аутентификации')
+        return
+      }
+      const resp = await fetch(getApiUrl('/v1/tune/notify_partner'), {
+        method: 'POST',
+        headers: {
+          'X-Telegram-Init-Data': initData,
+          'Content-Type': 'application/json'
+        }
+      })
+      if (resp.ok) {
+        const data = await resp.json()
+        setNotifySuccess(data.message || 'Уведомление отправлено')
+      } else {
+        const err = await resp.json().catch(() => ({}))
+        setError(err.detail || 'Не удалось отправить уведомление')
+      }
+    } catch (e) {
+      setError('Ошибка соединения при отправке уведомления')
+    } finally {
+      setNotifying(false)
     }
   }
 
@@ -290,6 +323,26 @@ const Tune: React.FC = () => {
             )}
 
             {/* Показываем ответы прямо в вопросах когда все ответы даны */}
+
+            {/* Кнопка уведомить партнера - показываем только если я ответил, а партнер нет */}
+            {answersData?.me?.about_me !== null && answersData?.me?.about_me !== undefined && 
+             answersData?.me?.about_partner !== null && answersData?.me?.about_partner !== undefined && 
+             (!answersData?.partner || 
+              answersData?.partner?.about_himself === null || answersData?.partner?.about_himself === undefined ||
+              answersData?.partner?.about_me === null || answersData?.partner?.about_me === undefined) && (
+              <div style={{ marginTop: 16, textAlign: 'center' }}>
+                <button 
+                  onClick={notifyPartner}
+                  className="btn btn-primary"
+                  disabled={notifying}
+                >
+                  {notifying ? 'Отправляем...' : 'Напомнить партнёру ответить'}
+                </button>
+                {notifySuccess && (
+                  <div style={{ marginTop: 8, color: 'var(--tg-theme-accent-text-color)' }}>{notifySuccess}</div>
+                )}
+              </div>
+            )}
 
           </div>
         )}
