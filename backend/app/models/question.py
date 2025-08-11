@@ -89,3 +89,27 @@ class PairDailyQuestion(Base):
     def __repr__(self):
         return f"<PairDailyQuestion(pair_id={self.pair_id}, question_id={self.question_id}, date={self.date})>"
 
+
+class QuestionNotification(Base):
+    """Отслеживание отправленных уведомлений для защиты от спама в ежедневных вопросах."""
+    __tablename__ = "question_notifications"
+
+    id = Column(Integer, primary_key=True, index=True)
+    pair_id = Column(Integer, ForeignKey("pairs.id"), nullable=False)
+    question_id = Column(Integer, ForeignKey("questions.id"), nullable=False)
+    sender_user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    recipient_user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    sent_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        UniqueConstraint('pair_id', 'question_id', 'sender_user_id', 'recipient_user_id', name='unique_question_notification'),
+    )
+
+    pair = relationship("Pair")
+    question = relationship("Question")
+    sender = relationship("User", foreign_keys=[sender_user_id])
+    recipient = relationship("User", foreign_keys=[recipient_user_id])
+
+    def __repr__(self) -> str:
+        return f"<QuestionNotification(pair_id={self.pair_id}, q={self.question_id}, sender={self.sender_user_id}, recipient={self.recipient_user_id})>"
+

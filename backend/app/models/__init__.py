@@ -1,7 +1,7 @@
 from app.core.database import Base
 from .user import User
 from .pair import Pair, PairInvite
-from .question import Question, UserAnswer, UserQuestionStatus, PairDailyQuestion
+from .question import Question, UserAnswer, UserQuestionStatus, PairDailyQuestion, QuestionNotification
 from .mood import Mood, Appreciation
 from .ritual import Ritual, RitualCheck
 from .calendar import CalendarEvent
@@ -20,6 +20,7 @@ __all__ = [
     "UserAnswer",
     "UserQuestionStatus",
     "PairDailyQuestion",
+    "QuestionNotification",
     "Mood",
     "Appreciation",
     "Ritual",

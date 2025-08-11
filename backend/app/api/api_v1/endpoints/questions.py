@@ -2,12 +2,12 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_, func
-from datetime import date
+from datetime import date, datetime, timedelta
 import random
 import httpx
 
 from app.core.database import get_db
-from app.models import User, Pair, Question, UserAnswer, UserQuestionStatus, PairDailyQuestion
+from app.models import User, Pair, Question, UserAnswer, UserQuestionStatus, PairDailyQuestion, QuestionNotification
 from app.services.auth import get_current_user
 from app.schemas.question import (
     QuestionResponse, 
@@ -412,6 +412,24 @@ async def notify_partner_to_answer(
     if partner_answer:
         return {"ok": True, "message": "Партнёр уже ответил"}
 
+    # Проверяем, не отправляли ли мы уже уведомление за последний час
+    one_hour_ago = datetime.utcnow() - timedelta(hours=1)
+    recent_notification = db.query(QuestionNotification).filter(
+        QuestionNotification.pair_id == user_pair.id,
+        QuestionNotification.question_id == question.id,
+        QuestionNotification.sender_user_id == current_user.id,
+        QuestionNotification.recipient_user_id == partner_id,
+        QuestionNotification.sent_at >= one_hour_ago
+    ).first()
+    
+    if recent_notification:
+        time_diff = datetime.utcnow() - recent_notification.sent_at
+        minutes_left = 60 - int(time_diff.total_seconds() / 60)
+        raise HTTPException(
+            status_code=429, 
+            detail=f"Уведомление уже отправлено. Попробуйте через {minutes_left} минут"
+        )
+
     # Отправка сообщения через Telegram Bot API
     bot_token = settings.TELEGRAM_BOT_TOKEN
     if not bot_token:
@@ -454,5 +472,15 @@ async def notify_partner_to_answer(
                 })
     except Exception:
         raise HTTPException(status_code=502, detail="Не удалось отправить уведомление в Telegram")
+
+    # Сохраняем запись об отправленном уведомлении
+    notification_record = QuestionNotification(
+        pair_id=user_pair.id,
+        question_id=question.id,
+        sender_user_id=current_user.id,
+        recipient_user_id=partner_id
+    )
+    db.add(notification_record)
+    db.commit()
 
     return {"ok": True}
