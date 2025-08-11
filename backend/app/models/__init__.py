@@ -9,7 +9,7 @@ from .female_cycle import FemaleCycle, FemaleCycleLog
 from .emotion_note import EmotionNote
 from .invitation import Invitation
 from .feedback import Feedback, FeedbackType, FeedbackStatus
-from .tune import PairDailyTuneQuestion, TuneAnswer, TuneQuizQuestion, TuneQuestionType
+from .tune import PairDailyTuneQuestion, TuneAnswer, TuneQuizQuestion, TuneQuestionType, TuneNotification
 
 __all__ = [
     "Base",
@@ -37,5 +37,6 @@ __all__ = [
     "TuneAnswer"
     ,
     "TuneQuizQuestion",
-    "TuneQuestionType"
+    "TuneQuestionType",
+    "TuneNotification"
 ]

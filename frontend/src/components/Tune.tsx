@@ -47,6 +47,7 @@ const Tune: React.FC = () => {
   const [answersData, setAnswersData] = useState<TuneAnswersResponse | null>(null)
   const [notifying, setNotifying] = useState(false)
   const [notifySuccess, setNotifySuccess] = useState('')
+  const [notifyCooldown, setNotifyCooldown] = useState<number | null>(null)
 
   const loadCurrent = async () => {
     try {
@@ -123,15 +124,20 @@ const Tune: React.FC = () => {
   }
 
   const notifyPartner = async () => {
+    // Защита от множественных кликов
+    if (notifying || notifyCooldown) return
+    
     try {
       setNotifySuccess('')
       setError('')
       setNotifying(true)
+      
       const initData = (window as any).Telegram?.WebApp?.initData
       if (!initData) {
         setError('Ошибка аутентификации')
         return
       }
+      
       const resp = await fetch(getApiUrl('/v1/tune/notify_partner'), {
         method: 'POST',
         headers: {
@@ -139,9 +145,45 @@ const Tune: React.FC = () => {
           'Content-Type': 'application/json'
         }
       })
+      
       if (resp.ok) {
         const data = await resp.json()
         setNotifySuccess(data.message || 'Уведомление отправлено')
+        
+        // Устанавливаем кулдаун на 60 секунд
+        setNotifyCooldown(60)
+        const interval = setInterval(() => {
+          setNotifyCooldown(prev => {
+            if (prev && prev > 1) {
+              return prev - 1
+            } else {
+              clearInterval(interval)
+              return null
+            }
+          })
+        }, 1000)
+        
+      } else if (resp.status === 429) {
+        // Rate limit - показываем сообщение об ошибке
+        const err = await resp.json().catch(() => ({}))
+        setError(err.detail || 'Слишком много запросов. Попробуйте позже')
+        
+        // Устанавливаем кулдаун на основе сообщения об ошибке
+        const match = err.detail?.match(/(\d+) минут/)
+        if (match) {
+          const minutes = parseInt(match[1])
+          setNotifyCooldown(minutes * 60)
+          const interval = setInterval(() => {
+            setNotifyCooldown(prev => {
+              if (prev && prev > 1) {
+                return prev - 1
+              } else {
+                clearInterval(interval)
+                return null
+              }
+            })
+          }, 1000)
+        }
       } else {
         const err = await resp.json().catch(() => ({}))
         setError(err.detail || 'Не удалось отправить уведомление')
@@ -334,9 +376,12 @@ const Tune: React.FC = () => {
                 <button 
                   onClick={notifyPartner}
                   className="btn btn-primary"
-                  disabled={notifying}
+                  disabled={notifying || notifyCooldown !== null}
                 >
-                  {notifying ? 'Отправляем...' : 'Напомнить партнёру ответить'}
+                  {notifying ? 'Отправляем...' : 
+                   notifyCooldown ? 
+                     `Повторить через ${Math.floor(notifyCooldown / 60)}:${(notifyCooldown % 60).toString().padStart(2, '0')}` : 
+                     'Напомнить партнёру ответить'}
                 </button>
                 {notifySuccess && (
                   <div style={{ marginTop: 8, color: 'var(--tg-theme-accent-text-color)' }}>{notifySuccess}</div>

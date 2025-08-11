@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime, timedelta
 import random
 from typing import Optional
 import httpx
@@ -10,7 +10,7 @@ from sqlalchemy import or_, and_, func
 from app.core.database import get_db
 from app.core.config import settings
 from app.models import User, Pair
-from app.models.tune import PairDailyTuneQuestion, TuneAnswer, TuneQuizQuestion
+from app.models.tune import PairDailyTuneQuestion, TuneAnswer, TuneQuizQuestion, TuneNotification
 from app.services.auth import get_current_user
 from app.schemas.tune import (
     TuneQuestionResponse,
@@ -319,6 +319,24 @@ async def notify_partner_to_answer_tune(
     if len(partner_answers) >= 2:
         return {"ok": True, "message": "Партнёр уже ответил"}
 
+    # Проверяем, не отправляли ли мы уже уведомление за последний час
+    one_hour_ago = datetime.utcnow() - timedelta(hours=1)
+    recent_notification = db.query(TuneNotification).filter(
+        TuneNotification.pair_id == user_pair.id,
+        TuneNotification.question_id == question.id,
+        TuneNotification.sender_user_id == current_user.id,
+        TuneNotification.recipient_user_id == partner_id,
+        TuneNotification.sent_at >= one_hour_ago
+    ).first()
+    
+    if recent_notification:
+        time_diff = datetime.utcnow() - recent_notification.sent_at
+        minutes_left = 60 - int(time_diff.total_seconds() / 60)
+        raise HTTPException(
+            status_code=429, 
+            detail=f"Уведомление уже отправлено. Попробуйте через {minutes_left} минут"
+        )
+
     # Отправка сообщения через Telegram Bot API
     bot_token = settings.TELEGRAM_BOT_TOKEN
     if not bot_token:
@@ -361,5 +379,15 @@ async def notify_partner_to_answer_tune(
                 })
     except Exception:
         raise HTTPException(status_code=502, detail="Не удалось отправить уведомление в Telegram")
+
+    # Сохраняем запись об отправленном уведомлении
+    notification = TuneNotification(
+        pair_id=user_pair.id,
+        question_id=question.id,
+        sender_user_id=current_user.id,
+        recipient_user_id=partner_id
+    )
+    db.add(notification)
+    db.commit()
 
     return {"ok": True, "message": "Уведомление отправлено"}

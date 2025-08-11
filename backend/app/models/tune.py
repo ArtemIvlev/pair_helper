@@ -6,6 +6,30 @@ import enum
 from app.core.database import Base
 
 
+class TuneNotification(Base):
+    """Отслеживание отправленных уведомлений для защиты от спама."""
+    __tablename__ = "tune_notifications"
+
+    id = Column(Integer, primary_key=True, index=True)
+    pair_id = Column(Integer, ForeignKey("pairs.id"), nullable=False)
+    question_id = Column(Integer, ForeignKey("tune_quiz_questions.id"), nullable=False)
+    sender_user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    recipient_user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    sent_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        UniqueConstraint('pair_id', 'question_id', 'sender_user_id', 'recipient_user_id', name='unique_tune_notification'),
+    )
+
+    pair = relationship("Pair")
+    question = relationship("TuneQuizQuestion")
+    sender = relationship("User", foreign_keys=[sender_user_id])
+    recipient = relationship("User", foreign_keys=[recipient_user_id])
+
+    def __repr__(self) -> str:
+        return f"<TuneNotification(pair_id={self.pair_id}, q={self.question_id}, sender={self.sender_user_id}, recipient={self.recipient_user_id})>"
+
+
 class PairDailyTuneQuestion(Base):
     """Назначенный на сегодня вопрос для пары (Сонастройка). Один вопрос в день на пару.
     В отличие от обычного daily-question, этот сценарий предполагает 4 ответа:
