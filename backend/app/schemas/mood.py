@@ -3,6 +3,14 @@ from typing import Optional
 from pydantic import BaseModel
 
 
+class UserInfo(BaseModel):
+    first_name: str
+    last_name: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
 class MoodBase(BaseModel):
     mood_code: str  # joyful, calm, tired, anxious, sad, irritable, grateful
     note: Optional[str] = None
@@ -17,6 +25,7 @@ class Mood(MoodBase):
     user_id: int
     date: datetime
     created_at: datetime
+    user: UserInfo
 
     class Config:
         from_attributes = True

@@ -37,6 +37,7 @@ fi
 SKIP_SECURITY=0
 USE_CACHE=1
 SELECTED_SERVICES=()
+ENVIRONMENT="dev"  # По умолчанию dev
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -56,14 +57,49 @@ while [[ $# -gt 0 ]]; do
       IFS=',' read -r -a SELECTED_SERVICES <<< "${1#*=}"
       shift
       ;;
+    --env=*)
+      ENVIRONMENT="${1#*=}"
+      shift
+      ;;
+    --prod)
+      ENVIRONMENT="prod"
+      shift
+      ;;
+    --dev)
+      ENVIRONMENT="dev"
+      shift
+      ;;
     -h|--help)
-      echo "Usage: ./build.sh [--skip-security-checks] [--no-cache] [--services=backend,bot,frontend,admin]"
+      echo "Usage: ./build.sh [--env=dev|prod] [--skip-security-checks] [--no-cache] [--services=backend,bot,frontend,admin]"
+      echo ""
+      echo "Environment options:"
+      echo "  --env=dev     Dev environment (default)"
+      echo "  --env=prod    Production environment"
+      echo "  --dev         Same as --env=dev"
+      echo "  --prod        Same as --env=prod"
+      echo ""
+      echo "Examples:"
+      echo "  ./build.sh                    # Dev environment"
+      echo "  ./build.sh --prod             # Production environment"
+      echo "  ./build.sh --env=dev --services=frontend  # Dev frontend only"
       exit 0
       ;;
     *)
       echo "Неизвестный аргумент: $1"; exit 1;;
   esac
 done
+
+# Определяем docker-compose файл в зависимости от окружения
+if [[ "$ENVIRONMENT" == "dev" ]]; then
+    COMPOSE_FILE="docker-compose.dev.yml"
+    if [ ! -f "$COMPOSE_FILE" ]; then
+        error "$COMPOSE_FILE не найден. Создайте dev конфигурацию."
+    fi
+    info "Используем dev окружение: $COMPOSE_FILE"
+else
+    COMPOSE_FILE="docker-compose.yml"
+    info "Используем production окружение: $COMPOSE_FILE"
+fi
 
 if [[ $SKIP_SECURITY -eq 1 ]]; then
     warning "Проверки безопасности пропущены по флагу --skip-security-checks"
@@ -73,29 +109,56 @@ else
     info "Выполняем проверки безопасности..."
     info "(Используйте --skip-security-checks для пропуска в экстренных случаях)"
 
-# Проверяем наличие .env файла для продакшена
-if [ ! -f ".env" ]; then
-    warning ".env файл не найден. Убедитесь, что он создан для продакшена!"
-else
-    info "Проверяем, что в .env нет дефолтных/тестовых значений..."
-    
-    # Проверяем критичные переменные на дефолтные значения
-    check_env_var() {
-        local var_name=$1
-        local var_value=$(grep "^${var_name}=" .env 2>/dev/null | cut -d'=' -f2- || echo "")
+# Проверяем наличие .env файла
+if [[ "$ENVIRONMENT" == "dev" ]]; then
+    if [ ! -f ".env.dev" ]; then
+        warning ".env.dev файл не найден. Скопируйте env.dev.example в .env.dev и настройте dev переменные!"
+    else
+        info "Проверяем dev конфигурацию в .env.dev..."
         
-        if [ -z "$var_value" ]; then
-            warning "Переменная $var_name не установлена в .env"
-            return 1
+        # Для dev окружения проверяем наличие dev переменных
+        check_env_var() {
+            local var_name=$1
+            local var_value=$(grep "^${var_name}=" .env.dev 2>/dev/null | cut -d'=' -f2- || echo "")
+            
+            if [ -z "$var_value" ]; then
+                warning "Переменная $var_name не установлена в .env.dev"
+                return 1
+            fi
+            
+            return 0
+        }
+        
+        # Проверяем dev переменные
+        if check_env_var "TELEGRAM_BOT_TOKEN_DEV"; then
+            success "Dev конфигурация прошла проверку"
         fi
+    fi
+else
+    # Production окружение
+    if [ ! -f ".env" ]; then
+        warning ".env файл не найден. Убедитесь, что он создан для продакшена!"
+    else
+        info "Проверяем, что в .env нет дефолтных/тестовых значений..."
         
-        # Проверяем ТОЛЬКО на дефолтные/тестовые значения (не на сам факт хранения в .env)
-        return 0
-    }
-    
-    # Проверяем все критичные переменные
-    if check_env_var "SECRET_KEY" && check_env_var "TELEGRAM_BOT_TOKEN" && check_env_var "DATABASE_URL"; then
-        success "Конфигурация безопасности прошла проверку"
+        # Проверяем критичные переменные на дефолтные значения
+        check_env_var() {
+            local var_name=$1
+            local var_value=$(grep "^${var_name}=" .env 2>/dev/null | cut -d'=' -f2- || echo "")
+            
+            if [ -z "$var_value" ]; then
+                warning "Переменная $var_name не установлена в .env"
+                return 1
+            fi
+            
+            # Проверяем ТОЛЬКО на дефолтные/тестовые значения (не на сам факт хранения в .env)
+            return 0
+        }
+        
+        # Проверяем все критичные переменные
+        if check_env_var "SECRET_KEY" && check_env_var "TELEGRAM_BOT_TOKEN" && check_env_var "DATABASE_URL"; then
+            success "Конфигурация безопасности прошла проверку"
+        fi
     fi
 fi
 
@@ -133,6 +196,15 @@ info "Метка для поиска в логах: $BUILD_MARKER"
 REGISTRY_URL="192.168.2.228:5000"
 PROJECT_NAME="pair-helper"
 
+# Определяем тег в зависимости от окружения
+if [[ "$ENVIRONMENT" == "dev" ]]; then
+    IMAGE_TAG="dev"
+    info "Используем dev тег: $IMAGE_TAG"
+else
+    IMAGE_TAG="latest"
+    info "Используем production тег: $IMAGE_TAG"
+fi
+
 info "Собираем Docker образы..."
 
 # Определяем список сервисов для сборки
@@ -153,8 +225,8 @@ fi
 build_service() {
   local svc=$1
   local ctx="./$svc"
-  local tag="${PROJECT_NAME}-${svc}:latest"
-  info "Собираем ${svc^}..."
+  local tag="${PROJECT_NAME}-${svc}:${IMAGE_TAG}"
+  info "Собираем ${svc^} с тегом $IMAGE_TAG..."
   docker build --network host \
     "${BUILD_CACHE_ARGS[@]}" \
     --build-arg BUILD_DATE=$BUILD_DATE_ARG \
@@ -174,8 +246,8 @@ info "Отправляем образы в локальный registry..."
 
 push_service() {
   local svc=$1
-  local local_tag="${PROJECT_NAME}-${svc}:latest"
-  local remote_tag="${REGISTRY_URL}/${PROJECT_NAME}-${svc}:latest"
+  local local_tag="${PROJECT_NAME}-${svc}:${IMAGE_TAG}"
+  local remote_tag="${REGISTRY_URL}/${PROJECT_NAME}-${svc}:${IMAGE_TAG}"
   docker tag "$local_tag" "$remote_tag"
   docker push "$remote_tag"
 }
@@ -265,15 +337,17 @@ check_remote_containers
 # Проверяем метку билда в логах
 check_build_marker_in_logs
 
+# Проверяем сервисы на удаленном сервере
+info "Проверяем сервисы на удаленном сервере..."
+
 # Проверяем удаленный backend
-info "Проверяем удаленный backend..."
 if curl -s http://$REMOTE_SERVER:8000/health --max-time 10 | grep -q "healthy" 2>/dev/null; then
     success "Backend отвечает корректно (удаленный сервер)"
 else
     warning "Backend недоступен на удаленном сервере. Проверьте логи через: python3 tests/check_backend_logs.py"
 fi
 
-# Проверяем удаленный frontend и пробуем найти метку билда во фронтовых логах
+# Проверяем удаленный frontend
 info "Проверяем удаленный frontend..."
 if curl -s http://$REMOTE_SERVER:3000 --max-time 10 >/dev/null 2>&1; then
     success "Frontend отвечает корректно (удаленный сервер)"

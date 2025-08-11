@@ -1,9 +1,26 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
+import { getApiUrl } from '../config'
+
+interface MoodData {
+  id: number
+  user_id: number
+  date: string
+  mood_code: string
+  note?: string
+  user: {
+    first_name: string
+    last_name?: string
+  }
+}
 
 const Mood: React.FC = () => {
   const [selectedMood, setSelectedMood] = useState('')
   const [note, setNote] = useState('')
   const [submitted, setSubmitted] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [recentMoods, setRecentMoods] = useState<MoodData[]>([])
+  const [loadingMoods, setLoadingMoods] = useState(false)
 
   const moods = [
     { code: 'joyful', emoji: '😊', text: 'Радостный' },
@@ -15,11 +32,99 @@ const Mood: React.FC = () => {
     { code: 'grateful', emoji: '🙏', text: 'Благодарный' },
   ]
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const moodEmojis: { [key: string]: string } = {
+    'joyful': '😊',
+    'calm': '😌',
+    'tired': '😴',
+    'anxious': '😰',
+    'sad': '😢',
+    'irritable': '😤',
+    'grateful': '🙏'
+  }
+
+  const loadRecentMoods = async () => {
+    setLoadingMoods(true)
+    try {
+      const initData = (window as any).Telegram?.WebApp?.initData
+      if (!initData) return
+
+      const response = await fetch(getApiUrl('/v1/mood/'), {
+        headers: {
+          'X-Telegram-Init-Data': initData
+        }
+      })
+
+      if (response.ok) {
+        const moods = await response.json()
+        setRecentMoods(moods.slice(0, 6)) // Показываем последние 6 настроений
+      }
+    } catch (err) {
+      console.error('Ошибка загрузки настроений:', err)
+    } finally {
+      setLoadingMoods(false)
+    }
+  }
+
+  useEffect(() => {
+    loadRecentMoods()
+  }, [])
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString)
+    const today = new Date()
+    const yesterday = new Date(today)
+    yesterday.setDate(yesterday.getDate() - 1)
+    
+    if (date.toDateString() === today.toDateString()) {
+      return 'Сегодня'
+    } else if (date.toDateString() === yesterday.toDateString()) {
+      return 'Вчера'
+    } else {
+      return date.toLocaleDateString('ru-RU', { 
+        day: 'numeric', 
+        month: 'short' 
+      })
+    }
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (selectedMood) {
-      setSubmitted(true)
-      // Здесь будет отправка на сервер
+    if (!selectedMood) return
+
+    setLoading(true)
+    setError('')
+
+    try {
+      const initData = (window as any).Telegram?.WebApp?.initData
+      if (!initData) {
+        setError('Ошибка аутентификации')
+        return
+      }
+
+      const response = await fetch(getApiUrl('/v1/mood/'), {
+        method: 'POST',
+        headers: {
+          'X-Telegram-Init-Data': initData,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          mood_code: selectedMood,
+          note: note.trim() || null
+        })
+      })
+
+      if (response.ok) {
+        setSubmitted(true)
+        // Перезагружаем список настроений после успешного сохранения
+        await loadRecentMoods()
+      } else {
+        const errorData = await response.json()
+        setError(errorData.detail || 'Ошибка сохранения настроения')
+      }
+    } catch (err) {
+      setError('Ошибка соединения с сервером')
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -33,6 +138,19 @@ const Mood: React.FC = () => {
 
       {!submitted ? (
         <div className="card card-elevated fade-in">
+          {error && (
+            <div style={{ 
+              color: 'var(--tg-theme-destructive-text-color)', 
+              fontSize: '14px', 
+              textAlign: 'center', 
+              padding: '12px',
+              marginBottom: '16px',
+              background: 'var(--tg-theme-secondary-bg-color)',
+              borderRadius: '8px'
+            }}>
+              {error}
+            </div>
+          )}
           <form onSubmit={handleSubmit}>
             <div className="mood-grid">
               {moods.map((mood) => (
@@ -60,9 +178,9 @@ const Mood: React.FC = () => {
             <button 
               type="submit" 
               className="btn btn-primary"
-              disabled={!selectedMood}
+              disabled={!selectedMood || loading}
             >
-              Сохранить настроение
+              {loading ? 'Сохранение...' : 'Сохранить настроение'}
             </button>
           </form>
         </div>
@@ -74,6 +192,40 @@ const Mood: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Последние настроения */}
+      <div className="card card-elevated fade-in" style={{ marginTop: '20px' }}>
+        <h3>Последние настроения</h3>
+        {loadingMoods ? (
+          <div style={{ textAlign: 'center', padding: '20px' }}>
+            <div className="loading-spinner"></div>
+            <p>Загрузка...</p>
+          </div>
+        ) : recentMoods.length > 0 ? (
+          <div className="recent-moods">
+            {recentMoods.map((mood) => (
+              <div key={mood.id} className="mood-entry">
+                <div className="mood-entry-header">
+                  <span className="mood-emoji-large">{moodEmojis[mood.mood_code] || '😊'}</span>
+                  <div className="mood-entry-info">
+                    <div className="mood-entry-name">
+                      {mood.user.first_name} {mood.user.last_name || ''}
+                    </div>
+                    <div className="mood-entry-date">{formatDate(mood.date)}</div>
+                  </div>
+                </div>
+                {mood.note && (
+                  <div className="mood-entry-note">{mood.note}</div>
+                )}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div style={{ textAlign: 'center', padding: '20px', color: 'var(--text-secondary)' }}>
+            <p>Пока нет сохранённых настроений</p>
+          </div>
+        )}
+      </div>
       </div>
     </div>
   )

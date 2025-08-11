@@ -4,7 +4,7 @@ import react from '@vitejs/plugin-react'
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
-  base: '/pulse_of_pair/',
+  base: process.env.VITE_BASE_PATH || '/pulse_of_pair/',
   server: {
     host: '0.0.0.0',
     port: 3000,

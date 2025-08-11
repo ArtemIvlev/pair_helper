@@ -162,6 +162,8 @@ Thumbs.db
 
 # Docker
 .dockerignore
+docker-compose.dev.yml
+.env.dev
 
 # Database
 *.db

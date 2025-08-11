@@ -50,7 +50,7 @@ async def cmd_start(message: types.Message):
         # Если есть приглашение, показываем специальное сообщение
         keyboard = InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(
-                text="Открыть Pair Helper",
+                text="Открыть Пульс ваших отношений",
                 web_app=WebAppInfo(url=webapp_url)
             )]
         ])
@@ -67,14 +67,14 @@ async def cmd_start(message: types.Message):
         # Если нет приглашения, показываем основное меню
         keyboard = InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(
-                text="Открыть Pair Helper",
+                text="Открыть Пульс ваших отношений",
                 web_app=WebAppInfo(url=webapp_url)
             )]
         ])
         
         await message.answer(
             "Привет! 👋\n\n"
-            "Добро пожаловать в Pair Helper - приложение для пар!\n\n"
+            "Добро пожаловать в Пульс ваших отношений - приложение для пар!\n\n"
             "Здесь вы можете:\n"
             "• Отвечать на ежедневные вопросы\n"
             "• Отмечать настроение дня\n"
@@ -108,7 +108,7 @@ async def cmd_invite(message: types.Message):
                 
                 keyboard = InlineKeyboardMarkup(inline_keyboard=[
                     [InlineKeyboardButton(
-                        text="Открыть Pair Helper",
+                        text="Открыть Пульс ваших отношений",
                         web_app=WebAppInfo(url=WEBAPP_URL)
                     )]
                 ])
@@ -135,7 +135,7 @@ async def cmd_invite(message: types.Message):
 async def cmd_help(message: types.Message):
     """Обработчик команды /help"""
     help_text = """
-🤖 Pair Helper Bot - Помощник для пар
+🤖 Пульс ваших отношений Bot - Помощник для пар
 
 📋 Доступные команды:
 /start - Запустить приложение
@@ -160,13 +160,13 @@ async def cmd_menu(message: types.Message):
     """Обработчик команды /menu"""
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(
-            text="Открыть Pair Helper",
+            text="Открыть Пульс ваших отношений",
             web_app=WebAppInfo(url=WEBAPP_URL)
         )]
     ])
     
     await message.answer(
-        "Главное меню Pair Helper:",
+        "Главное меню Пульс ваших отношений:",
         reply_markup=keyboard
     )
 
@@ -176,13 +176,13 @@ async def cmd_open(message: types.Message):
     """Обработчик команды /open"""
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(
-            text="Открыть Pair Helper",
+            text="Открыть Пульс ваших отношений",
             web_app=WebAppInfo(url=WEBAPP_URL)
         )]
     ])
     
     await message.answer(
-        "Открываю Pair Helper...",
+        "Открываю Пульс ваших отношений...",
         reply_markup=keyboard
     )
 
@@ -197,7 +197,7 @@ async def echo_message(message: types.Message):
     # В личных сообщениях предлагаем открыть приложение
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(
-            text="Открыть Pair Helper",
+            text="Открыть Пульс ваших отношений",
             web_app=WebAppInfo(url=WEBAPP_URL)
         )]
     ])
@@ -210,7 +210,7 @@ async def echo_message(message: types.Message):
 
 async def main():
     """Основная функция"""
-    logger.info("🤖 Pair Helper Bot запускается...")
+    logger.info("🤖 Пульс ваших отношений Bot запускается...")
     logger.info(f"📦 Build ID: {BUILD_ID}")
     logger.info(f"📅 Build Date: {BUILD_DATE}")
     logger.info(f"🏷️  {BUILD_MARKER}")

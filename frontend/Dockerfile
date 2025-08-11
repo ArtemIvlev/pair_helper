@@ -13,6 +13,14 @@ FROM node:18-alpine as build
 
 WORKDIR /app
 
+# Аргументы для Vite (должны быть доступны во время сборки)
+ARG VITE_BASE_PATH
+ARG VITE_API_BASE_URL
+
+# Переменные окружения для Vite
+ENV VITE_BASE_PATH=${VITE_BASE_PATH}
+ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
+
 # Копируем node_modules из предыдущего stage
 COPY --from=dependencies /app/node_modules ./node_modules
 COPY package*.json ./
@@ -41,6 +49,8 @@ EXPOSE 3000
 ARG BUILD_DATE
 ARG BUILD_ID  
 ARG BUILD_MARKER
+ARG VITE_BASE_PATH
+ARG VITE_API_BASE_URL
 
 # Метаданные образа
 LABEL build_date="${BUILD_DATE}"
@@ -51,6 +61,8 @@ LABEL build_marker="${BUILD_MARKER}"
 ENV BUILD_DATE=${BUILD_DATE}
 ENV BUILD_ID=${BUILD_ID}
 ENV BUILD_MARKER=${BUILD_MARKER}
+ENV VITE_BASE_PATH=${VITE_BASE_PATH}
+ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
 
 # Запуск SPA сервера с выводом маркера билда в логи
 CMD ["sh", "-c", "echo $BUILD_MARKER; echo BUILD_DATE=$BUILD_DATE BUILD_ID=$BUILD_ID; serve -s dist -l 3000"]

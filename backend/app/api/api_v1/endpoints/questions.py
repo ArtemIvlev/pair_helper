@@ -423,7 +423,7 @@ async def notify_partner_to_answer(
     
     text = (
         f"Ваш партнёр {current_user.first_name or ''} ответил на вопрос дня.\n"
-        f"Откройте Pair Helper и ответьте тоже."
+                    f"Откройте Пульс ваших отношений и ответьте тоже."
     ).strip()
 
     api_url = f"https://api.telegram.org/bot{bot_token}/sendMessage"

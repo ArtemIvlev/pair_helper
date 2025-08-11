@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+
+{% block title %}Обращение #{{ feedback.id }} - Админ панель{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Обращение #{{ feedback.id }}</h1>
+        <a href="{{ url_for('feedback_list') }}" class="btn btn-secondary">← Назад к списку</a>
+    </div>
+
+    <div class="row">
+        <div class="col-md-8">
+            <!-- Основная информация -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">{{ feedback.subject }}</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <strong>Тип:</strong>
+                            {% if feedback.feedback_type == 'bug' %}🐛 Ошибка
+                            {% elif feedback.feedback_type == 'feature' %}💡 Предложение
+                            {% elif feedback.feedback_type == 'general' %}💬 Общее
+                            {% else %}📝 Другое{% endif %}
+                        </div>
+                        <div class="col-md-6">
+                            <strong>Статус:</strong>
+                            {% if feedback.status == 'new' or not feedback.status %}
+                                <span class="badge bg-warning">Новое</span>
+                            {% elif feedback.status == 'in_progress' %}
+                                <span class="badge bg-info">В работе</span>
+                            {% elif feedback.status == 'resolved' %}
+                                <span class="badge bg-success">Решено</span>
+                            {% elif feedback.status == 'closed' %}
+                                <span class="badge bg-secondary">Закрыто</span>
+                            {% else %}
+                                <span class="badge bg-warning">Новое</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <strong>Сообщение:</strong>
+                        <div class="mt-2 p-3 bg-light rounded">
+                            {{ feedback.message | replace('\n', '<br>') | safe }}
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <strong>Дата создания:</strong><br>
+                            {{ feedback.created_at.strftime('%d.%m.%Y %H:%M:%S') }}
+                        </div>
+                        <div class="col-md-6">
+                            <strong>Последнее обновление:</strong><br>
+                            {{ feedback.updated_at.strftime('%d.%m.%Y %H:%M:%S') }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Информация о пользователе -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Информация о пользователе</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <strong>Имя:</strong><br>
+                            {{ feedback.user.first_name }}
+                            {% if feedback.user.last_name %}{{ feedback.user.last_name }}{% endif %}
+                        </div>
+                        <div class="col-md-6">
+                            <strong>Telegram ID:</strong><br>
+                            {{ feedback.user.telegram_id }}
+                        </div>
+                    </div>
+                    {% if feedback.user.username %}
+                    <div class="row mt-2">
+                        <div class="col-md-6">
+                            <strong>Username:</strong><br>
+                            @{{ feedback.user.username }}
+                        </div>
+                        <div class="col-md-6">
+                            <strong>Дата регистрации:</strong><br>
+                            {{ feedback.user.created_at.strftime('%d.%m.%Y %H:%M') }}
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <!-- Действия -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Действия</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('feedback_update', feedback_id=feedback.id) }}">
+                        <div class="mb-3">
+                            <label for="status" class="form-label">Изменить статус</label>
+                            <select name="status" id="status" class="form-select">
+                                <option value="new" {% if feedback.status == 'new' or not feedback.status %}selected{% endif %}>Новое</option>
+                                <option value="in_progress" {% if feedback.status == 'in_progress' %}selected{% endif %}>В работе</option>
+                                <option value="resolved" {% if feedback.status == 'resolved' %}selected{% endif %}>Решено</option>
+                                <option value="closed" {% if feedback.status == 'closed' %}selected{% endif %}>Закрыто</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="admin_response" class="form-label">Ответ администрации</label>
+                            <textarea name="admin_response" id="admin_response" class="form-control" rows="6" 
+                                      placeholder="Введите ответ пользователю...">{{ feedback.admin_response or '' }}</textarea>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary w-100 mb-2">Сохранить изменения</button>
+                    </form>
+
+                    <form method="POST" action="{{ url_for('feedback_delete', feedback_id=feedback.id) }}" 
+                          onsubmit="return confirm('Вы уверены, что хотите удалить это обращение?')">
+                        <button type="submit" class="btn btn-danger w-100">Удалить обращение</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Ответ администрации -->
+            {% if feedback.admin_response %}
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Ответ администрации</h5>
+                </div>
+                <div class="card-body">
+                    <div class="p-3 bg-light rounded">
+                        {{ feedback.admin_response | replace('\n', '<br>') | safe }}
+                    </div>
+                    <small class="text-muted mt-2 d-block">
+                        Обновлено: {{ feedback.updated_at.strftime('%d.%m.%Y %H:%M') }}
+                    </small>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

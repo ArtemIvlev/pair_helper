@@ -6,12 +6,14 @@ from pydantic import AnyHttpUrl
 class Settings(BaseSettings):
     # API Configuration
     API_V1_STR: str = "/api/v1"
-    PROJECT_NAME: str = "Pair Helper"
+    PROJECT_NAME: str = "Пульс ваших отношений"
     
     # CORS - только разрешенные домены
     ALLOWED_HOSTS: List[str] = [
         "https://gallery.homoludens.photos",
         "gallery.homoludens.photos",  # Для API запросов через nginx
+        "https://gallery-dev.homoludens.photos",
+        "gallery-dev.homoludens.photos",  # Для dev API запросов через nginx
         "https://t.me", 
         "https://web.telegram.org",
         "192.168.2.*",         # Вся подсеть сервера

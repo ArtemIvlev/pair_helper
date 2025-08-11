@@ -57,7 +57,7 @@ class CustomTrustedHostMiddleware(BaseHTTPMiddleware):
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
-    title="Pair Helper API",
+    title="Пульс ваших отношений API",
     description="API для Telegram Web App для пар",
     version="1.0.0",
     openapi_url=f"{settings.API_V1_STR}/openapi.json"
@@ -92,7 +92,7 @@ app.include_router(api_router, prefix=settings.API_V1_STR)
 @app.on_event("startup")
 async def startup_event():
     """Событие при запуске приложения"""
-    logger.info(f"🚀 Pair Helper Backend запущен!")
+    logger.info(f"🚀 Пульс ваших отношений Backend запущен!")
     logger.info(f"📦 Build ID: {BUILD_ID}")
     logger.info(f"📅 Build Date: {BUILD_DATE}")
     logger.info(f"🏷️  {BUILD_MARKER}")
@@ -100,7 +100,7 @@ async def startup_event():
 @app.get("/")
 async def root():
     return {
-        "message": "Pair Helper API", 
+        "message": "Пульс ваших отношений API", 
         "version": "1.0.0",
         "build_id": BUILD_ID,
         "build_date": BUILD_DATE,

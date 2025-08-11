@@ -1,0 +1,69 @@
+version: '3.8'
+services:
+  pair-helper-backend-dev:
+    image: 192.168.2.228:5000/pair-helper-backend:dev
+    container_name: pair-helper-backend-dev
+    restart: unless-stopped
+    ports:
+      - "9000:8000"
+    environment:
+      - DATABASE_URL=postgresql://admin:Passw0rd@192.168.2.228:5432/pair_helper_dev
+      - SECRET_KEY=dev_secret_key_123
+      - TELEGRAM_BOT_TOKEN=8435841914:AAFfCyb-IeyANsGxZvumPhTNkLEkasq5GVs
+      - ALLOWED_HOSTS=localhost,127.0.0.1,192.168.2.*,172.16.*.*,172.17.*.*,172.18.*.*,10.*.*.*
+      - TZ=Europe/Moscow
+    networks:
+      - pair_helper_network
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+
+  pair-helper-bot-dev:
+    image: 192.168.2.228:5000/pair-helper-bot:dev
+    container_name: pair-helper-bot-dev
+    restart: unless-stopped
+    environment:
+      - TELEGRAM_BOT_TOKEN=8435841914:AAFfCyb-IeyANsGxZvumPhTNkLEkasq5GVs
+      - WEBAPP_URL=https://gallery-dev.homoludens.photos/pulse_of_pair/
+      - DATABASE_URL=postgresql://admin:Passw0rd@192.168.2.228:5432/pair_helper_dev
+      - TZ=Europe/Moscow
+    networks:
+      - pair_helper_network
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+
+  pair-helper-frontend-dev:
+    image: 192.168.2.228:5000/pair-helper-frontend:dev
+    container_name: pair-helper-frontend-dev
+    restart: unless-stopped
+    ports:
+      - "9001:3000"
+    environment:
+      - VITE_API_BASE_URL=https://gallery-dev.homoludens.photos/pulse_of_pair/api
+      - VITE_TELEGRAM_BOT_TOKEN=8435841914:AAFfCyb-IeyANsGxZvumPhTNkLEkasq5GVs
+      - VITE_BASE_PATH=/pulse_of_pair/
+      - TZ=Europe/Moscow
+    networks:
+      - pair_helper_network
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+
+  pair-helper-admin-dev:
+    image: 192.168.2.228:5000/pair-helper-admin:dev
+    container_name: pair-helper-admin-dev
+    restart: unless-stopped
+    ports:
+      - "5002:5001"
+    environment:
+      - DATABASE_URL=postgresql://admin:Passw0rd@192.168.2.228:5432/pair_helper_dev
+      - SECRET_KEY=dev_secret_key_123
+      - ADMIN_USERNAME=admin
+      - ADMIN_PASSWORD=admin123
+      - TZ=Europe/Moscow
+    networks:
+      - pair_helper_network
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+
+networks:
+  pair_helper_network:
+    driver: bridge

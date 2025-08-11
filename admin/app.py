@@ -8,6 +8,7 @@ from werkzeug.utils import secure_filename
 from datetime import datetime
 from dotenv import load_dotenv
 
+
 load_dotenv()
 
 app = Flask(__name__)
@@ -16,6 +17,133 @@ app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['UPLOAD_FOLDER'] = '/tmp'
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
+
+# Маршруты обратной связи
+@app.route('/feedback')
+@login_required
+def feedback_list():
+    page = request.args.get('page', 1, type=int)
+    per_page = 20
+    
+    # Фильтры
+    status_filter = request.args.get('status', '')
+    type_filter = request.args.get('type', '')
+    
+    # Преобразуем значения для фильтрации
+    if status_filter:
+        status_filter = status_filter.lower()
+    if type_filter:
+        type_filter = type_filter.lower()
+    
+    query = Feedback.query.join(User)
+    
+    if status_filter:
+        # Используем ILIKE для регистронезависимого поиска
+        query = query.filter(db.func.lower(Feedback.status) == status_filter)
+    if type_filter:
+        # Используем ILIKE для регистронезависимого поиска
+        query = query.filter(db.func.lower(Feedback.feedback_type) == type_filter)
+    
+    feedback = query.order_by(Feedback.created_at.desc()).paginate(
+        page=page, per_page=per_page, error_out=False
+    )
+    
+    # Статистика с преобразованием значений
+    def normalize_status(status):
+        return status.lower() if status else ''
+    
+    def normalize_type(feedback_type):
+        return feedback_type.lower() if feedback_type else ''
+    
+    all_feedback = Feedback.query.all()
+    stats = {
+        'total': len(all_feedback),
+        'new': len([f for f in all_feedback if normalize_status(f.status) == 'new']),
+        'in_progress': len([f for f in all_feedback if normalize_status(f.status) == 'in_progress']),
+        'resolved': len([f for f in all_feedback if normalize_status(f.status) == 'resolved']),
+        'closed': len([f for f in all_feedback if normalize_status(f.status) == 'closed']),
+    }
+    
+    return render_template('feedback.html', 
+                         feedback=feedback, 
+                         stats=stats,
+                         status_filter=status_filter,
+                         type_filter=type_filter)
+
+@app.route('/feedback/<int:feedback_id>')
+@login_required
+def feedback_detail(feedback_id):
+    feedback = Feedback.query.get_or_404(feedback_id)
+    return render_template('feedback_detail.html', feedback=feedback)
+
+@app.route('/feedback/<int:feedback_id>/update', methods=['POST'])
+@login_required
+def feedback_update(feedback_id):
+    feedback = Feedback.query.get_or_404(feedback_id)
+    
+    status = request.form.get('status')
+    admin_response = request.form.get('admin_response')
+    
+    if status:
+        feedback.status = status
+    if admin_response is not None:
+        feedback.admin_response = admin_response
+    
+    feedback.updated_at = datetime.utcnow()
+    db.session.commit()
+    
+    flash('Обратная связь обновлена', 'success')
+    return redirect(url_for('feedback_detail', feedback_id=feedback_id))
+
+@app.route('/feedback/<int:feedback_id>/delete', methods=['POST'])
+@login_required
+def feedback_delete(feedback_id):
+    feedback = Feedback.query.get_or_404(feedback_id)
+    db.session.delete(feedback)
+    db.session.commit()
+    
+    flash('Обратная связь удалена', 'success')
+    return redirect(url_for('feedback_list'))
+
+@app.route('/feedback/stats')
+@login_required
+def feedback_stats():
+    # Получаем все записи и группируем в Python
+    all_feedback = Feedback.query.all()
+    
+    # Статистика по типам обращений
+    type_counts = {}
+    for feedback in all_feedback:
+        feedback_type = feedback.feedback_type.lower() if feedback.feedback_type else 'unknown'
+        type_counts[feedback_type] = type_counts.get(feedback_type, 0) + 1
+    
+    type_stats = [{'type': t, 'count': c} for t, c in type_counts.items()]
+    
+    # Статистика по статусам
+    status_counts = {}
+    for feedback in all_feedback:
+        status = feedback.status.lower() if feedback.status else 'unknown'
+        status_counts[status] = status_counts.get(status, 0) + 1
+    
+    status_stats = [{'status': s, 'count': c} for s, c in status_counts.items()]
+    
+    # Статистика по дням (последние 30 дней)
+    from datetime import timedelta
+    thirty_days_ago = datetime.utcnow() - timedelta(days=30)
+    
+    daily_counts = {}
+    for feedback in all_feedback:
+        if feedback.created_at and feedback.created_at >= thirty_days_ago:
+            date_str = feedback.created_at.strftime('%Y-%m-%d')
+            daily_counts[date_str] = daily_counts.get(date_str, 0) + 1
+    
+    daily_stats = [{'date': date, 'count': count} for date, count in sorted(daily_counts.items())]
+    
+    return jsonify({
+        'type_stats': type_stats,
+        'status_stats': status_stats,
+        'daily_stats': daily_stats
+    })
 
 db = SQLAlchemy(app)
 login_manager = LoginManager()
@@ -58,6 +186,21 @@ class Question(db.Model):
     category = db.Column(db.String(100), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+class Feedback(db.Model):
+    __tablename__ = 'feedback'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    feedback_type = db.Column(db.String, nullable=False)  # bug, feature, general, other (или BUG, FEATURE, etc.)
+    subject = db.Column(db.String(200), nullable=False)
+    message = db.Column(db.Text, nullable=False)
+    status = db.Column(db.String, default='new')  # new, in_progress, resolved, closed (или NEW, IN_PROGRESS, etc.)
+    admin_response = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    user = db.relationship('User')
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -306,6 +449,7 @@ if __name__ == '__main__':
         # Создаем только таблицы админки
         AdminUser.__table__.create(db.engine, checkfirst=True)
         Question.__table__.create(db.engine, checkfirst=True)
+        Feedback.__table__.create(db.engine, checkfirst=True)
         
         # Создаем админа по умолчанию если его нет
         if not AdminUser.query.filter_by(username='admin').first():

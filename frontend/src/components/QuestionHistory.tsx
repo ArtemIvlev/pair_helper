@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { getApiUrl } from '../config'
 
 interface Question {
   id: number
@@ -51,13 +52,13 @@ const QuestionHistory: React.FC = () => {
       }
 
       const [historyResponse, statsResponse] = await Promise.all([
-        fetch('/pulse_of_pair/api/v1/questions/history', {
+        fetch(getApiUrl('/v1/questions/history'), {
           headers: {
             'X-Telegram-Init-Data': initData,
             'Content-Type': 'application/json'
           }
         }),
-        fetch('/pulse_of_pair/api/v1/questions/stats', {
+        fetch(getApiUrl('/v1/questions/stats'), {
           headers: {
             'X-Telegram-Init-Data': initData,
             'Content-Type': 'application/json'
@@ -83,7 +84,7 @@ const QuestionHistory: React.FC = () => {
   const fetchAnswers = async (questionId: number) => {
     try {
       const initData = (window as any).Telegram?.WebApp?.initData
-      const response = await fetch(`/pulse_of_pair/api/v1/questions/answers/${questionId}`, {
+      const response = await fetch(getApiUrl(`/v1/questions/answers/${questionId}`), {
         headers: {
           'X-Telegram-Init-Data': initData,
           'Content-Type': 'application/json'

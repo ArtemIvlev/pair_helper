@@ -2,28 +2,63 @@ import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Heart, MessageCircle } from 'lucide-react'
 import InvitePartner from './InvitePartner'
+import { getApiUrl } from '../config'
 
 interface HomeProps {
   user: any
 }
 
+interface QuestionStats {
+  total_questions: number
+  user_answered: number
+  partner_answered: number
+  both_answered: number
+  completion_percentage: number
+}
+
 const Home: React.FC<HomeProps> = ({ user }) => {
   const navigate = useNavigate()
   const [loading, setLoading] = useState(true)
-  const [stats, setStats] = useState({
-    questionStreak: 0,
-    moodStreak: 0
+  const [stats, setStats] = useState<QuestionStats>({
+    total_questions: 0,
+    user_answered: 0,
+    partner_answered: 0,
+    both_answered: 0,
+    completion_percentage: 0
   })
+  const [error, setError] = useState('')
 
   useEffect(() => {
-    // Имитация загрузки данных
-    setTimeout(() => {
-      setLoading(false)
-      setStats({
-        questionStreak: 5,
-        moodStreak: 3
-      })
-    }, 1000)
+    const fetchStats = async () => {
+      try {
+        const initData = (window as any).Telegram?.WebApp?.initData
+        if (!initData) {
+          setError('Ошибка аутентификации')
+          setLoading(false)
+          return
+        }
+
+        const response = await fetch(getApiUrl('/v1/questions/stats'), {
+          headers: {
+            'X-Telegram-Init-Data': initData,
+            'Content-Type': 'application/json'
+          }
+        })
+
+        if (response.ok) {
+          const data = await response.json()
+          setStats(data)
+        } else {
+          setError('Ошибка загрузки статистики')
+        }
+      } catch (err) {
+        setError('Ошибка соединения с сервером')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchStats()
   }, [])
 
   const quickActions = [
@@ -58,29 +93,9 @@ const Home: React.FC<HomeProps> = ({ user }) => {
         <h1>Привет, {user?.first_name || 'дорогой'}! 👋</h1>
         <p>Как дела сегодня?</p>
       </div>
+      {/* Компонент приглашения партнера */}
+      <InvitePartner user={user} />
 
-      {/* Статистика */}
-      <div className="card card-elevated fade-in">
-        <h3>Ваша активность</h3>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '16px', marginTop: '16px' }}>
-          <div className="text-center">
-            <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#667eea' }}>
-              {stats.questionStreak}
-            </div>
-            <div style={{ fontSize: '12px', color: 'var(--tg-theme-hint-color)' }}>
-              дней подряд отвечаете на вопросы
-            </div>
-          </div>
-          <div className="text-center">
-            <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#f093fb' }}>
-              {stats.moodStreak}
-            </div>
-            <div style={{ fontSize: '12px', color: 'var(--tg-theme-hint-color)' }}>
-              дней подряд отмечаете настроение
-            </div>
-          </div>
-        </div>
-      </div>
 
       {/* Быстрые действия */}
       <div className="card card-elevated fade-in">
@@ -91,7 +106,7 @@ const Home: React.FC<HomeProps> = ({ user }) => {
             return (
               <div
                 key={action.path}
-                className="quick-action"
+                className="quick-action-item"
                 onClick={() => navigate(action.path)}
                 style={{
                   display: 'flex',
@@ -141,6 +156,53 @@ const Home: React.FC<HomeProps> = ({ user }) => {
         </div>
       </div>
 
+
+      {/* Статистика */}
+      <div className="card card-elevated fade-in">
+        <h3>Ваша активность</h3>
+        {error ? (
+          <div style={{ color: 'var(--tg-theme-destructive-text-color)', fontSize: '14px', textAlign: 'center', padding: '16px' }}>
+            {error}
+          </div>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '16px', marginTop: '16px' }}>
+            <div className="text-center">
+              <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#667eea' }}>
+                {stats.user_answered}
+              </div>
+              <div style={{ fontSize: '12px', color: 'var(--tg-theme-hint-color)' }}>
+                вопросов вы ответили
+              </div>
+            </div>
+            <div className="text-center">
+              <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#f093fb' }}>
+                {stats.both_answered}
+              </div>
+              <div style={{ fontSize: '12px', color: 'var(--tg-theme-hint-color)' }}>
+                вопросов ответили оба
+              </div>
+            </div>
+            {stats.total_questions > 0 && (
+              <div style={{ gridColumn: '1 / -1', marginTop: '8px' }}>
+                <div style={{ 
+                  background: 'var(--tg-theme-secondary-bg-color)', 
+                  borderRadius: '8px', 
+                  padding: '12px',
+                  textAlign: 'center'
+                }}>
+                  <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#667eea' }}>
+                    {stats.completion_percentage}%
+                  </div>
+                  <div style={{ fontSize: '12px', color: 'var(--tg-theme-hint-color)' }}>
+                    прогресс прохождения
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
       {/* Мотивационное сообщение */}
       <div className="card fade-in" style={{ textAlign: 'center', background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: 'white' }}>
         <h3>💕</h3>
@@ -149,8 +211,6 @@ const Home: React.FC<HomeProps> = ({ user }) => {
         </p>
       </div>
 
-      {/* Компонент приглашения партнера */}
-      <InvitePartner user={user} />
       </div>
     </div>
   )

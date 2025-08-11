@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom'
 import './App.css'
+import { getApiUrl } from './config'
 
 // Компоненты
 import Home from './components/Home'
@@ -53,6 +54,7 @@ function App() {
   const [loading, setLoading] = useState(true)
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [navigateToQuestion, setNavigateToQuestion] = useState(false)
+  const [navigateToMood, setNavigateToMood] = useState(false)
 
   useEffect(() => {
     // Проверяем, запущено ли приложение в Telegram
@@ -60,6 +62,17 @@ function App() {
       setIsTelegramWebApp(true)
       window.Telegram.WebApp.ready()
       window.Telegram.WebApp.expand()
+      
+      // Определяем тему Telegram и устанавливаем атрибут
+      const themeParams = window.Telegram.WebApp.themeParams
+      const bgColor = themeParams.bg_color || '#ffffff'
+      
+      // Определяем темную/светлую тему по цвету фона
+      const isDarkTheme = isColorDark(bgColor)
+      const theme = isDarkTheme ? 'dark' : 'light'
+      
+      // Устанавливаем атрибут темы на корневой элемент
+      document.documentElement.setAttribute('data-theme', theme)
       
       // Определяем режим открытия
       const viewportHeight = window.Telegram.WebApp.viewportHeight
@@ -80,9 +93,26 @@ function App() {
     }
   }, [])
 
+  // Функция для определения темной темы по цвету
+  const isColorDark = (color: string): boolean => {
+    // Убираем # если есть
+    const hex = color.replace('#', '')
+    
+    // Конвертируем в RGB
+    const r = parseInt(hex.substr(0, 2), 16)
+    const g = parseInt(hex.substr(2, 2), 16)
+    const b = parseInt(hex.substr(4, 2), 16)
+    
+    // Вычисляем яркость (формула из WCAG)
+    const brightness = (r * 299 + g * 587 + b * 114) / 1000
+    
+    // Если яркость меньше 128, считаем темной темой
+    return brightness < 128
+  }
+
   const checkUserRegistration = async (telegramId: number) => {
     try {
-      const response = await fetch(`https://gallery.homoludens.photos/pulse_of_pair/api/v1/users/me?telegram_id=${telegramId}`)
+              const response = await fetch(getApiUrl(`/v1/users/me?telegram_id=${telegramId}`))
       if (response.ok) {
         const userData = await response.json()
         setRegisteredUser(userData)
@@ -112,6 +142,17 @@ function App() {
           // Сохраняем намерение перехода на вопросы после загрузки
           setNavigateToQuestion(true)
         }
+
+        // Проверяем диплинк на страницу настроения
+        const directMoodParam = urlParams.get('mood')
+        const startAppMoodParam = startParam === 'mood' ? 'mood' : null
+        const moodParam = directMoodParam || startAppMoodParam
+        
+        if (moodParam === 'mood') {
+          console.log('Обнаружен диплинк на настроение')
+          // Сохраняем намерение перехода на настроение после загрузки
+          setNavigateToMood(true)
+        }
       }
       // Если пользователь не найден (404), он не зарегистрирован
     } catch (error) {
@@ -124,7 +165,7 @@ function App() {
   const useInvitation = async (inviteCode: string, telegramId: number) => {
     try {
       console.log('Используем приглашение:', inviteCode, 'для пользователя:', telegramId)
-      const response = await fetch(`https://gallery.homoludens.photos/pulse_of_pair/api/v1/invitations/${inviteCode}/use?invitee_telegram_id=${telegramId}`, {
+              const response = await fetch(getApiUrl(`/v1/invitations/${inviteCode}/use?invitee_telegram_id=${telegramId}`), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' }
       })
@@ -160,7 +201,7 @@ function App() {
     return (
       <div className="container">
         <div className="header">
-          <h1>Pair Helper</h1>
+          <h1>Пульс ваших отношений</h1>
           <p>Это приложение должно быть запущено в Telegram</p>
         </div>
       </div>
@@ -207,6 +248,8 @@ function App() {
         isFullscreen={isFullscreen}
         navigateToQuestion={navigateToQuestion}
         setNavigateToQuestion={setNavigateToQuestion}
+        navigateToMood={navigateToMood}
+        setNavigateToMood={setNavigateToMood}
       />
     </Router>
   )
@@ -218,9 +261,11 @@ interface AppContentProps {
   isFullscreen: boolean
   navigateToQuestion: boolean
   setNavigateToQuestion: (value: boolean) => void
+  navigateToMood: boolean
+  setNavigateToMood: (value: boolean) => void
 }
 
-function AppContent({ user, isFullscreen, navigateToQuestion, setNavigateToQuestion }: AppContentProps) {
+function AppContent({ user, isFullscreen, navigateToQuestion, setNavigateToQuestion, navigateToMood, setNavigateToMood }: AppContentProps) {
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -230,6 +275,14 @@ function AppContent({ user, isFullscreen, navigateToQuestion, setNavigateToQuest
       setNavigateToQuestion(false) // Сбрасываем флаг
     }
   }, [navigateToQuestion, navigate, setNavigateToQuestion])
+
+  useEffect(() => {
+    if (navigateToMood) {
+      console.log('Переходим на страницу настроения по диплинку')
+      navigate('/pulse_of_pair/mood')
+      setNavigateToMood(false) // Сбрасываем флаг
+    }
+  }, [navigateToMood, navigate, setNavigateToMood])
 
   return (
     <div className={`tg-app ${isFullscreen ? 'fullscreen' : 'embedded'}`}>

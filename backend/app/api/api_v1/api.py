@@ -12,7 +12,8 @@ from app.api.api_v1.endpoints import (
     export,
     account,
     users,
-    invitations
+    invitations,
+    feedback
 )
 
 api_router = APIRouter()
@@ -29,3 +30,4 @@ api_router.include_router(export.router, prefix="/export", tags=["export"])
 api_router.include_router(account.router, prefix="/account", tags=["account"])
 api_router.include_router(users.router, prefix="/users", tags=["users"])
 api_router.include_router(invitations.router, prefix="/invitations", tags=["invitations"])
+api_router.include_router(feedback.router, prefix="/feedback", tags=["feedback"])

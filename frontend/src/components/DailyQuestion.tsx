@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { getApiUrl } from '../config'
 
 interface Question {
   id: number
@@ -39,7 +40,7 @@ const DailyQuestion: React.FC = () => {
         return
       }
 
-      const response = await fetch('/pulse_of_pair/api/v1/questions/current', {
+      const response = await fetch(getApiUrl('/v1/questions/current'), {
         headers: {
           'X-Telegram-Init-Data': initData,
           'Content-Type': 'application/json'
@@ -75,7 +76,7 @@ const DailyQuestion: React.FC = () => {
     try {
       const initData = (window as any).Telegram?.WebApp?.initData
       if (!initData) return
-      const resp = await fetch('/pulse_of_pair/api/v1/questions/history?limit=5', {
+      const resp = await fetch(getApiUrl('/v1/questions/history?limit=5'), {
         headers: {
           'X-Telegram-Init-Data': initData,
           'Content-Type': 'application/json'
@@ -107,7 +108,7 @@ const DailyQuestion: React.FC = () => {
         setError('Ошибка аутентификации')
         return
       }
-      const resp = await fetch('/pulse_of_pair/api/v1/questions/notify_partner', {
+      const resp = await fetch(getApiUrl('/v1/questions/notify_partner'), {
         method: 'POST',
         headers: {
           'X-Telegram-Init-Data': initData,
@@ -131,7 +132,7 @@ const DailyQuestion: React.FC = () => {
   const fetchAnswers = async (questionId: number) => {
     try {
       const initData = (window as any).Telegram?.WebApp?.initData
-      const response = await fetch(`/pulse_of_pair/api/v1/questions/answers/${questionId}`, {
+      const response = await fetch(getApiUrl(`/v1/questions/answers/${questionId}`), {
         headers: {
           'X-Telegram-Init-Data': initData,
           'Content-Type': 'application/json'
@@ -157,7 +158,7 @@ const DailyQuestion: React.FC = () => {
 
     try {
       const initData = (window as any).Telegram?.WebApp?.initData
-      const response = await fetch('/pulse_of_pair/api/v1/questions/answer', {
+      const response = await fetch(getApiUrl('/v1/questions/answer'), {
         method: 'POST',
         headers: {
           'X-Telegram-Init-Data': initData,

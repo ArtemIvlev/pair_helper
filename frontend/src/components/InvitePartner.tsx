@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { getApiUrl } from '../config'
 
 interface InvitePartnerProps {
   user: any
@@ -37,7 +38,7 @@ const InvitePartner: React.FC<InvitePartnerProps> = ({ user }) => {
     if (!user?.id) return
 
     try {
-      const response = await fetch(`https://gallery.homoludens.photos/pulse_of_pair/api/v1/pair/`, {
+      const response = await fetch(getApiUrl('/v1/pair/'), {
         headers: {
           'Content-Type': 'application/json',
           'X-Telegram-User-ID': user.telegram_id.toString()
@@ -66,7 +67,7 @@ const InvitePartner: React.FC<InvitePartnerProps> = ({ user }) => {
     setInviteLink(null)
 
     try {
-      const response = await fetch(`https://gallery.homoludens.photos/pulse_of_pair/api/v1/invitations/generate?inviter_telegram_id=${user.telegram_id}`, {
+      const response = await fetch(getApiUrl(`/v1/invitations/generate?inviter_telegram_id=${user.telegram_id}`), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' }
       })
@@ -105,7 +106,7 @@ const InvitePartner: React.FC<InvitePartnerProps> = ({ user }) => {
 
   const shareViaTelegram = () => {
     if (inviteLink) {
-      const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(inviteLink)}&text=${encodeURIComponent('Привет! Присоединяйся ко мне в Pair Helper - приложении для пар! 💕')}`
+      const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(inviteLink)}&text=${encodeURIComponent('Привет! Присоединяйся ко мне в Пульс ваших отношений - приложении для пар! 💕')}`
       window.open(shareUrl, '_blank')
     }
   }
@@ -142,9 +143,6 @@ const InvitePartner: React.FC<InvitePartnerProps> = ({ user }) => {
             </div>
           </div>
           
-          <div className="pair-actions">
-            <p><em>Вы уже в паре! Создание новых приглашений недоступно.</em></p>
-          </div>
         </div>
       </div>
     )

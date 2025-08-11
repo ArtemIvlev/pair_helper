@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react'
+import { getApiUrl } from '../config'
+import Feedback from './Feedback'
 
 interface SettingsProps {
   user?: any
@@ -33,7 +35,7 @@ const Settings: React.FC<SettingsProps> = ({ user }) => {
 
     setLoading(true)
     try {
-      const response = await fetch(`https://gallery.homoludens.photos/pulse_of_pair/api/v1/users/${user.id}`, {
+      const response = await fetch(getApiUrl(`/v1/users/${user.id}`), {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -113,6 +115,20 @@ const Settings: React.FC<SettingsProps> = ({ user }) => {
               }}
             >
               Приложение
+            </button>
+            <button
+              onClick={() => setActiveTab('feedback')}
+              style={{
+                flex: 1,
+                padding: '12px',
+                border: 'none',
+                background: activeTab === 'feedback' ? 'var(--tg-theme-button-color)' : 'transparent',
+                color: activeTab === 'feedback' ? 'var(--tg-theme-button-text-color)' : 'var(--tg-theme-text-color)',
+                cursor: 'pointer',
+                borderRadius: '8px 8px 0 0'
+              }}
+            >
+              Обратная связь
             </button>
           </div>
         </div>
@@ -214,6 +230,12 @@ const Settings: React.FC<SettingsProps> = ({ user }) => {
             <p style={{ color: 'var(--tg-theme-hint-color)' }}>
               Настройки приложения будут доступны в следующих обновлениях
             </p>
+          </div>
+        )}
+
+        {activeTab === 'feedback' && (
+          <div>
+            <Feedback />
           </div>
         )}
       </div>

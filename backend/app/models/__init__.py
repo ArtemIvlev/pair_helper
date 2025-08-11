@@ -8,6 +8,7 @@ from .calendar import CalendarEvent
 from .female_cycle import FemaleCycle, FemaleCycleLog
 from .emotion_note import EmotionNote
 from .invitation import Invitation
+from .feedback import Feedback, FeedbackType, FeedbackStatus
 
 __all__ = [
     "Base",
@@ -26,5 +27,8 @@ __all__ = [
     "FemaleCycle",
     "FemaleCycleLog",
     "EmotionNote",
-    "Invitation"
+    "Invitation",
+    "Feedback",
+    "FeedbackType",
+    "FeedbackStatus"
 ]

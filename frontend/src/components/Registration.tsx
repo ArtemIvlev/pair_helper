@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
+import { getApiUrl } from '../config'
 
 interface RegistrationProps {
   user: any
@@ -43,7 +44,7 @@ const Registration: React.FC<RegistrationProps> = ({ user, onRegistrationComplet
     if (invite) {
       setInviteCode(invite)
       // Получаем информацию о приглашении
-      fetch(`https://gallery.homoludens.photos/pulse_of_pair/api/v1/invitations/${invite}`)
+              fetch(getApiUrl(`/v1/invitations/${invite}`))
         .then(response => response.json())
         .then(data => {
           if (data.code) {
@@ -76,7 +77,7 @@ const Registration: React.FC<RegistrationProps> = ({ user, onRegistrationComplet
     
     try {
       // Регистрируем пользователя
-      const response = await fetch('https://gallery.homoludens.photos/pulse_of_pair/api/v1/users/register', {
+      const response = await fetch(getApiUrl('/v1/users/register'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -107,7 +108,7 @@ const Registration: React.FC<RegistrationProps> = ({ user, onRegistrationComplet
         <div className="container">
                   <div className="header">
           <h1>Добро пожаловать! 👋</h1>
-          <p>Добро пожаловать в Pair Helper - приложение для укрепления отношений в паре</p>
+          <p>Добро пожаловать в Пульс ваших отношений - приложение для укрепления отношений в паре</p>
           
 
           
