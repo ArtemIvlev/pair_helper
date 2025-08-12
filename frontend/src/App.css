@@ -73,8 +73,21 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
-.container { padding: 16px; }
-@media (max-width: 480px) { .container { padding: 12px; } }
+.container { 
+  padding: 16px; 
+  max-width: 100%;
+  overflow-x: hidden;
+}
+@media (max-width: 480px) { 
+  .container { 
+    padding: 12px; 
+  } 
+}
+@media (max-width: 360px) { 
+  .container { 
+    padding: 8px; 
+  } 
+}
 
 /* ===== Cards / surfaces ===== */
 .card, .card-elevated {
@@ -337,22 +350,40 @@ h1:last-child, h2:last-child, h3:last-child, h4:last-child, h5:last-child, h6:la
 /* ===== Mood styles ===== */
 .mood-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
   gap: 12px;
   margin-bottom: 20px;
+  padding: 0 4px;
+}
+
+@media (max-width: 480px) {
+  .mood-grid {
+    grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
+    gap: 8px;
+    padding: 0 2px;
+  }
+}
+
+@media (max-width: 360px) {
+  .mood-grid {
+    grid-template-columns: repeat(auto-fit, minmax(85px, 1fr));
+    gap: 6px;
+  }
 }
 
 .mood-item {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 16px 8px;
+  padding: 12px 6px;
   border-radius: var(--radius);
   background: var(--bg-surface);
   border: 2px solid transparent;
   cursor: pointer;
   transition: all 0.2s ease;
   text-align: center;
+  min-height: 80px;
+  justify-content: center;
 }
 
 .mood-item:hover {
@@ -367,14 +398,29 @@ h1:last-child, h2:last-child, h3:last-child, h4:last-child, h5:last-child, h6:la
 }
 
 .mood-emoji {
-  font-size: 32px;
-  margin-bottom: 8px;
+  font-size: 28px;
+  margin-bottom: 6px;
+  line-height: 1;
 }
 
 .mood-text {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--text-secondary);
   font-weight: 500;
+  line-height: 1.2;
+  word-wrap: break-word;
+  max-width: 100%;
+}
+
+@media (max-width: 480px) {
+  .mood-emoji {
+    font-size: 24px;
+    margin-bottom: 4px;
+  }
+  
+  .mood-text {
+    font-size: 10px;
+  }
 }
 
 /* ===== Recent moods ===== */
