@@ -1,4 +1,4 @@
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 import random
 from typing import Optional
 import httpx
@@ -320,7 +320,7 @@ async def notify_partner_to_answer_tune(
         return {"ok": True, "message": "Партнёр уже ответил"}
 
     # Проверяем, не отправляли ли мы уже уведомление за последний час
-    one_hour_ago = datetime.utcnow() - timedelta(hours=1)
+    one_hour_ago = datetime.now(timezone.utc) - timedelta(hours=1)
     recent_notification = db.query(TuneNotification).filter(
         TuneNotification.pair_id == user_pair.id,
         TuneNotification.question_id == question.id,
@@ -330,7 +330,7 @@ async def notify_partner_to_answer_tune(
     ).first()
     
     if recent_notification:
-        time_diff = datetime.utcnow() - recent_notification.sent_at
+        time_diff = datetime.now(timezone.utc) - recent_notification.sent_at
         minutes_left = 60 - int(time_diff.total_seconds() / 60)
         raise HTTPException(
             status_code=429, 
