@@ -190,3 +190,6 @@ telegram_bot_token.txt
 # Temporary files
 *.tmp
 *.temp
+
+# Documentation with sensitive info
+docs/
