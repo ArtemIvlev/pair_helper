@@ -1,0 +1,1 @@
+from .daily_checkin import DailyCheckinRule  # noqa: F401

@@ -17,6 +17,7 @@ from app.schemas.question import (
     PairAnswersResponse
 )
 from app.core.config import settings
+from app.services.notifications import NotificationService
 
 router = APIRouter()
 
@@ -431,47 +432,34 @@ async def notify_partner_to_answer(
         )
 
     # Отправка сообщения через Telegram Bot API
-    bot_token = settings.TELEGRAM_BOT_TOKEN
-    if not bot_token:
-        raise HTTPException(status_code=500, detail="Bot token не настроен")
-
     # Создаём диплинк на страницу вопросов
     webapp_base_url = settings.TELEGRAM_WEBAPP_URL or "https://gallery.homoludens.photos/pulse_of_pair/"
     webapp_url = f"{webapp_base_url}?tgWebAppStartParam=question_daily"
-    
+
     text = (
         f"Ваш партнёр {current_user.first_name or ''} ответил на вопрос дня.\n"
-                    f"Откройте Пульс ваших отношений и ответьте тоже."
+        f"Откройте Пульс ваших отношений и ответьте тоже."
     ).strip()
 
-    api_url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
     reply_markup = {
         "inline_keyboard": [[
             {"text": "Ответить на вопрос", "web_app": {"url": webapp_url}}
         ]]
     }
 
-    try:
-        async with httpx.AsyncClient(timeout=10) as client:
-            resp = await client.post(api_url, json={
-                "chat_id": partner.telegram_id,
-                "text": text,
-                "reply_markup": reply_markup
-            })
-            if resp.status_code != 200:
-                # Фолбэк: обычная URL кнопка
-                fallback = {
-                    "inline_keyboard": [[
-                        {"text": "Ответить на вопрос", "url": webapp_url}
-                    ]]
-                }
-                await client.post(api_url, json={
-                    "chat_id": partner.telegram_id,
-                    "text": text,
-                    "reply_markup": fallback
-                })
-    except Exception:
-        raise HTTPException(status_code=502, detail="Не удалось отправить уведомление в Telegram")
+    service = NotificationService()
+    await service.send(
+        n_type="question_reminder",
+        recipient=partner,
+        text=text,
+        reply_markup=reply_markup,
+        pair=user_pair,
+        actor=current_user,
+        entity_type="question",
+        entity_id=question.id,
+        date_bucket=None,
+        metadata={"source": "manual_notify"}
+    )
 
     # Сохраняем запись об отправленном уведомлении
     notification_record = QuestionNotification(
