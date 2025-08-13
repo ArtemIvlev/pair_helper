@@ -10,6 +10,7 @@ from app.models import User, Mood, Appreciation, Pair
 from app.schemas.mood import Mood as MoodSchema, MoodCreate, Appreciation as AppreciationSchema, AppreciationCreate
 from app.services.auth import get_current_user
 from app.core.config import settings
+from app.services.notifications import NotificationService
 
 
 router = APIRouter()
@@ -211,41 +212,28 @@ async def send_mood_notification_to_partner(user: User, mood_code: str, was_upda
     # Формируем текст сообщения
     action = "обновил" if was_update else "отметил"
     text = f"{user.first_name or 'Партнер'} {action} настроение дня: {mood_emoji}"
-    
-    # Отправляем сообщение через Telegram Bot API
-    bot_token = settings.TELEGRAM_BOT_TOKEN
-    if not bot_token:
-        return
-    
+
     # Создаём диплинк на страницу настроений
     webapp_base_url = settings.TELEGRAM_WEBAPP_URL or "https://gallery.homoludens.photos/pulse_of_pair/"
     webapp_url = f"{webapp_base_url}?tgWebAppStartParam=mood"
-    
-    api_url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+
     reply_markup = {
         "inline_keyboard": [[
             {"text": "Посмотреть настроение", "web_app": {"url": webapp_url}}
         ]]
     }
-    
-    try:
-        async with httpx.AsyncClient(timeout=10) as client:
-            resp = await client.post(api_url, json={
-                "chat_id": partner.telegram_id,
-                "text": text,
-                "reply_markup": reply_markup
-            })
-            if resp.status_code != 200:
-                # Фолбэк: обычная URL кнопка
-                fallback = {
-                    "inline_keyboard": [[
-                        {"text": "Посмотреть настроение", "url": webapp_url}
-                    ]]
-                }
-                await client.post(api_url, json={
-                    "chat_id": partner.telegram_id,
-                    "text": text,
-                    "reply_markup": fallback
-                })
-    except Exception as e:
-        print(f"Ошибка отправки уведомления о настроении: {e}")
+
+    # Отправка через универсальный сервис с кулдауном 30 минут
+    service = NotificationService()
+    await service.send(
+        n_type="mood_update",
+        recipient=partner,
+        text=text,
+        reply_markup=reply_markup,
+        pair=pair,
+        actor=user,
+        entity_type="mood",
+        entity_id=None,
+        date_bucket=None,
+        metadata={"mood_code": mood_code, "was_update": was_update}
+    )

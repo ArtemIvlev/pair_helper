@@ -12,6 +12,8 @@ from app.core.database import engine
 from app.models import Base
 from app.middleware.security import RateLimitMiddleware, SecurityHeadersMiddleware, TelegramValidationMiddleware, ProxyHeadersMiddleware
 from app.middleware.usage_analytics import UsageAnalyticsMiddleware
+from app.notifications import rules as _notification_rules  # noqa: F401
+from app.notifications.engine import NotificationEngine
 
 # Информация о билде
 BUILD_DATE = os.getenv("BUILD_DATE", "unknown")
@@ -99,6 +101,9 @@ async def startup_event():
     logger.info(f"📅 Build Date: {BUILD_DATE}")
     logger.info(f"🏷️  {BUILD_MARKER}")
     # Аналитика на Postgres не требует специальной инициализации
+    
+    # Инициализация движка уведомлений (правила регистрируются при импорте)
+    app.state.notification_engine = NotificationEngine()
 
 @app.get("/")
 async def root():

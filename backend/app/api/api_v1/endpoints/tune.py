@@ -18,6 +18,7 @@ from app.schemas.tune import (
     TunePairAnswersResponse,
     TuneAnswerItem,
 )
+from app.services.notifications import NotificationService
 
 
 router = APIRouter()
@@ -345,40 +346,31 @@ async def notify_partner_to_answer_tune(
     # Создаём диплинк на страницу Сонастройки
     webapp_base_url = settings.TELEGRAM_WEBAPP_URL or "https://gallery.homoludens.photos/pulse_of_pair/"
     webapp_url = f"{webapp_base_url}?tgWebAppStartParam=tune"
-    
+
     text = (
         f"Ваш партнёр {current_user.first_name or ''} ответил на квиз Сонастройка.\n"
         f"Откройте Пульс ваших отношений и ответьте тоже."
     ).strip()
 
-    api_url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
     reply_markup = {
         "inline_keyboard": [[
             {"text": "Ответить на квиз", "web_app": {"url": webapp_url}}
         ]]
     }
 
-    try:
-        async with httpx.AsyncClient(timeout=10) as client:
-            resp = await client.post(api_url, json={
-                "chat_id": partner.telegram_id,
-                "text": text,
-                "reply_markup": reply_markup
-            })
-            if resp.status_code != 200:
-                # Фолбэк: обычная URL кнопка
-                fallback = {
-                    "inline_keyboard": [[
-                        {"text": "Ответить на квиз", "url": webapp_url}
-                    ]]
-                }
-                await client.post(api_url, json={
-                    "chat_id": partner.telegram_id,
-                    "text": text,
-                    "reply_markup": fallback
-                })
-    except Exception:
-        raise HTTPException(status_code=502, detail="Не удалось отправить уведомление в Telegram")
+    service = NotificationService()
+    await service.send(
+        n_type="tune_reminder",
+        recipient=partner,
+        text=text,
+        reply_markup=reply_markup,
+        pair=user_pair,
+        actor=current_user,
+        entity_type="tune_question",
+        entity_id=question.id,
+        date_bucket=None,
+        metadata={"source": "manual_notify"}
+    )
 
     # Сохраняем запись об отправленном уведомлении
     notification = TuneNotification(
