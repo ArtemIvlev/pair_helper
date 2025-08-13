@@ -31,16 +31,19 @@ def feedback_list():
     type_filter = request.args.get('type', '')
     
     # Преобразуем значения для фильтрации
-    if status_filter:
-        status_filter = status_filter.lower()
-    if type_filter:
-        type_filter = type_filter.lower()
+    status_mapping = {
+        'new': 'NEW',
+        'in_progress': 'IN_PROGRESS', 
+        'resolved': 'RESOLVED',
+        'closed': 'CLOSED'
+    }
     
     query = Feedback.query.join(User)
     
     if status_filter:
-        # Используем ILIKE для регистронезависимого поиска
-        query = query.filter(db.func.lower(Feedback.status) == status_filter)
+        # Маппим строчные значения на заглавные для фильтрации
+        db_status = status_mapping.get(status_filter, status_filter.upper())
+        query = query.filter(Feedback.status == db_status)
     if type_filter:
         # Используем ILIKE для регистронезависимого поиска
         query = query.filter(db.func.lower(Feedback.feedback_type) == type_filter)
@@ -51,6 +54,14 @@ def feedback_list():
     
     # Статистика с преобразованием значений
     def normalize_status(status):
+        if status == 'NEW':
+            return 'new'
+        elif status == 'IN_PROGRESS':
+            return 'in_progress'
+        elif status == 'RESOLVED':
+            return 'resolved'
+        elif status == 'CLOSED':
+            return 'closed'
         return status.lower() if status else ''
     
     def normalize_type(feedback_type):
@@ -85,15 +96,31 @@ def feedback_update(feedback_id):
     status = request.form.get('status')
     admin_response = request.form.get('admin_response')
     
-    if status:
-        feedback.status = status
+    # Валидация статуса - приводим к правильному формату (enum в БД использует заглавные буквы)
+    status_mapping = {
+        'new': 'NEW',
+        'in_progress': 'IN_PROGRESS', 
+        'resolved': 'RESOLVED',
+        'closed': 'CLOSED'
+    }
+    if status and status in status_mapping:
+        feedback.status = status_mapping[status]
+    elif status:
+        flash(f'Неверный статус: {status}', 'error')
+        return redirect(url_for('feedback_detail', feedback_id=feedback_id))
+    
     if admin_response is not None:
         feedback.admin_response = admin_response
     
-    feedback.updated_at = datetime.utcnow()
-    db.session.commit()
+    try:
+        feedback.updated_at = datetime.utcnow()
+        db.session.commit()
+        flash('Обратная связь обновлена', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Ошибка при обновлении: {str(e)}', 'error')
+        print(f"Error updating feedback: {e}")
     
-    flash('Обратная связь обновлена', 'success')
     return redirect(url_for('feedback_detail', feedback_id=feedback_id))
 
 @app.route('/feedback/<int:feedback_id>/delete', methods=['POST'])
@@ -601,23 +628,45 @@ def api_stats():
     total_users = User.query.count()
     total_pairs = Pair.query.count()
     
-    # Статистика по дням за последние 30 дней
+    # Статистика по дням за последние 30 дней - накопительная
     from datetime import timedelta
     thirty_days_ago = datetime.utcnow() - timedelta(days=30)
     
-    daily_users = db.session.query(
-        db.func.date(User.created_at).label('date'),
-        db.func.count(User.id).label('count')
-    ).filter(
-        User.created_at >= thirty_days_ago
-    ).group_by(
-        db.func.date(User.created_at)
-    ).all()
+    # Получаем все даты за последние 30 дней
+    dates = []
+    current_date = thirty_days_ago.date()
+    end_date = datetime.utcnow().date()
+    
+    while current_date <= end_date:
+        dates.append(current_date)
+        current_date += timedelta(days=1)
+    
+    # Вычисляем накопительные значения для каждого дня
+    daily_stats = []
+    cumulative_users = 0
+    cumulative_pairs = 0
+    
+    for date in dates:
+        # Количество пользователей, зарегистрированных до или в этот день
+        users_on_date = User.query.filter(
+            db.func.date(User.created_at) <= date
+        ).count()
+        
+        # Количество пар, созданных до или в этот день
+        pairs_on_date = Pair.query.filter(
+            db.func.date(Pair.created_at) <= date
+        ).count()
+        
+        daily_stats.append({
+            'date': date.strftime('%Y-%m-%d'),
+            'users': users_on_date,
+            'pairs': pairs_on_date
+        })
     
     return jsonify({
         'total_users': total_users,
         'total_pairs': total_pairs,
-        'daily_users': [{'date': str(day.date), 'count': day.count} for day in daily_users]
+        'daily_stats': daily_stats
     })
 
 if __name__ == '__main__':

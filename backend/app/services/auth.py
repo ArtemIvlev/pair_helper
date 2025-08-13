@@ -5,7 +5,7 @@ import time
 from typing import Optional
 from urllib.parse import parse_qsl
 import logging
-from fastapi import HTTPException, status, Depends, Header
+from fastapi import HTTPException, status, Depends, Header, Request
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -84,7 +84,8 @@ def verify_telegram_webapp_data(init_data: str) -> dict:
 
 def get_current_user(
     x_telegram_init_data: Optional[str] = Header(None),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    request: Request = None,
 ) -> User:
     """Получает текущего пользователя из Telegram данных"""
     if not x_telegram_init_data:
@@ -131,4 +132,12 @@ def get_current_user(
         db.commit()
         db.refresh(user)
     
+    # Прокидываем telegram_id в request.state для аналитики
+    try:
+        if request is not None:
+            request.state.telegram_id = user.telegram_id
+    except Exception:
+        # Не критично, если state недоступен
+        pass
+
     return user

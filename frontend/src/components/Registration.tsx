@@ -200,8 +200,8 @@ const Registration: React.FC<RegistrationProps> = ({ user, onRegistrationComplet
                 display: 'flex', 
                 alignItems: 'flex-start', 
                 cursor: 'pointer',
-                wordWrap: 'break-word',
-                overflowWrap: 'break-word'
+                gap: '8px',
+                width: '100%'
               }}>
                 <input
                   type="checkbox"
@@ -209,18 +209,18 @@ const Registration: React.FC<RegistrationProps> = ({ user, onRegistrationComplet
                   checked={formData.acceptTerms}
                   onChange={handleInputChange}
                   style={{ 
-                    marginRight: '12px', 
                     marginTop: '2px',
                     flexShrink: 0,
-                    minWidth: '16px'
+                    width: '16px',
+                    height: '16px'
                   }}
                 />
                 <span style={{ 
                   fontSize: '14px', 
                   lineHeight: '1.4',
+                  flex: '1',
                   wordBreak: 'break-word',
-                  overflowWrap: 'break-word',
-                  hyphens: 'auto'
+                  overflowWrap: 'break-word'
                 }}>
                   Я принимаю <strong>Пользовательское соглашение</strong> и соглашаюсь с правилами использования приложения
                 </span>
@@ -232,8 +232,8 @@ const Registration: React.FC<RegistrationProps> = ({ user, onRegistrationComplet
                 display: 'flex', 
                 alignItems: 'flex-start', 
                 cursor: 'pointer',
-                wordWrap: 'break-word',
-                overflowWrap: 'break-word'
+                gap: '8px',
+                width: '100%'
               }}>
                 <input
                   type="checkbox"
@@ -241,18 +241,18 @@ const Registration: React.FC<RegistrationProps> = ({ user, onRegistrationComplet
                   checked={formData.acceptPrivacy}
                   onChange={handleInputChange}
                   style={{ 
-                    marginRight: '12px', 
                     marginTop: '2px',
                     flexShrink: 0,
-                    minWidth: '16px'
+                    width: '16px',
+                    height: '16px'
                   }}
                 />
                 <span style={{ 
                   fontSize: '14px', 
                   lineHeight: '1.4',
+                  flex: '1',
                   wordBreak: 'break-word',
-                  overflowWrap: 'break-word',
-                  hyphens: 'auto'
+                  overflowWrap: 'break-word'
                 }}>
                   Я даю согласие на <strong>обработку персональных данных</strong> в соответствии с Политикой конфиденциальности
                 </span>

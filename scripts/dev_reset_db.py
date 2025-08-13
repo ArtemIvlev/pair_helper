@@ -33,12 +33,24 @@ def reset_dev_database():
         print("✅ Подключение к dev базе установлено")
         
         # Список таблиц для очистки (только пользовательские данные)
+        # Порядок важен из-за внешних ключей!
         tables_to_clear = [
             'user_answers',
-            'pair_daily_questions', 
-            'pairs',
-            'invitations',
-            'users'
+            'tune_notifications',  # Зависит от pairs и users
+            'tune_answers',  # Зависит от pairs
+            'pair_daily_tune_questions',  # Зависит от pairs
+            'pair_daily_questions',  # Зависит от pairs
+            'user_question_status',  # Зависит от pairs и users
+            'emotion_notes',  # Зависит от pairs и users
+            'calendar_events',  # Зависит от pairs и users
+            'moods',  # Зависит от users
+            'appreciations',  # Зависит от users
+            'female_cycle_logs',  # Зависит от users
+            'female_cycles',  # Зависит от users
+            'feedback',  # Зависит от users
+            'pairs',  # Зависит от users
+            'invitations',  # Зависит от users
+            'users'  # Удаляем последней
         ]
         
         # Очистка таблиц
@@ -53,7 +65,18 @@ def reset_dev_database():
         # Сброс автоинкрементов
         sequences_to_reset = [
             'user_answers_id_seq',
+            'tune_notifications_id_seq',
+            'tune_answers_id_seq',
+            'pair_daily_tune_questions_id_seq',
             'pair_daily_questions_id_seq',
+            'user_question_status_id_seq',
+            'emotion_notes_id_seq',
+            'calendar_events_id_seq',
+            'moods_id_seq',
+            'appreciations_id_seq',
+            'female_cycle_logs_id_seq',
+            'female_cycles_id_seq',
+            'feedback_id_seq',
             'pairs_id_seq', 
             'invitations_id_seq',
             'users_id_seq'

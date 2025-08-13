@@ -56,10 +56,10 @@
     <div class="col-xl-8 col-lg-7">
         <div class="card shadow mb-4">
             <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
-                <h6 class="m-0 font-weight-bold text-primary">Регистрации за 30 дней</h6>
+                <h6 class="m-0 font-weight-bold text-primary">Рост пользователей и пар за 30 дней</h6>
             </div>
             <div class="card-body">
-                <canvas id="usersChart" width="400" height="200"></canvas>
+                <canvas id="statsChart" width="400" height="200"></canvas>
             </div>
         </div>
     </div>
@@ -98,26 +98,52 @@
 
 {% block scripts %}
 <script>
-let usersChart;
+let statsChart;
 
 function initChart() {
-    const ctx = document.getElementById('usersChart').getContext('2d');
-    usersChart = new Chart(ctx, {
+    const ctx = document.getElementById('statsChart').getContext('2d');
+    statsChart = new Chart(ctx, {
         type: 'line',
         data: {
             labels: [],
             datasets: [{
-                label: 'Новые пользователи',
+                label: 'Пользователи',
                 data: [],
                 borderColor: 'rgb(75, 192, 192)',
                 backgroundColor: 'rgba(75, 192, 192, 0.2)',
-                tension: 0.1
+                tension: 0.1,
+                yAxisID: 'y'
+            }, {
+                label: 'Пары',
+                data: [],
+                borderColor: 'rgb(255, 99, 132)',
+                backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                tension: 0.1,
+                yAxisID: 'y'
             }]
         },
         options: {
             responsive: true,
+            interaction: {
+                mode: 'index',
+                intersect: false,
+            },
             scales: {
+                x: {
+                    display: true,
+                    title: {
+                        display: true,
+                        text: 'Дата'
+                    }
+                },
                 y: {
+                    type: 'linear',
+                    display: true,
+                    position: 'left',
+                    title: {
+                        display: true,
+                        text: 'Количество'
+                    },
                     beginAtZero: true,
                     ticks: {
                         stepSize: 1
@@ -135,10 +161,14 @@ function refreshStats() {
             document.getElementById('total-users').textContent = data.total_users;
             document.getElementById('total-pairs').textContent = data.total_pairs;
             
-            if (usersChart) {
-                usersChart.data.labels = data.daily_users.map(item => item.date);
-                usersChart.data.datasets[0].data = data.daily_users.map(item => item.count);
-                usersChart.update();
+            if (statsChart) {
+                statsChart.data.labels = data.daily_stats.map(item => {
+                    const date = new Date(item.date);
+                    return date.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' });
+                });
+                statsChart.data.datasets[0].data = data.daily_stats.map(item => item.users);
+                statsChart.data.datasets[1].data = data.daily_stats.map(item => item.pairs);
+                statsChart.update();
             }
         })
         .catch(error => console.error('Error fetching stats:', error));

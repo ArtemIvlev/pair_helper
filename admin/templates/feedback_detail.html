@@ -27,13 +27,13 @@
                         </div>
                         <div class="col-md-6">
                             <strong>Статус:</strong>
-                            {% if feedback.status == 'new' or not feedback.status %}
+                            {% if feedback.status == 'NEW' or not feedback.status %}
                                 <span class="badge bg-warning">Новое</span>
-                            {% elif feedback.status == 'in_progress' %}
+                            {% elif feedback.status == 'IN_PROGRESS' %}
                                 <span class="badge bg-info">В работе</span>
-                            {% elif feedback.status == 'resolved' %}
+                            {% elif feedback.status == 'RESOLVED' %}
                                 <span class="badge bg-success">Решено</span>
-                            {% elif feedback.status == 'closed' %}
+                            {% elif feedback.status == 'CLOSED' %}
                                 <span class="badge bg-secondary">Закрыто</span>
                             {% else %}
                                 <span class="badge bg-warning">Новое</span>
@@ -105,10 +105,10 @@
                         <div class="mb-3">
                             <label for="status" class="form-label">Изменить статус</label>
                             <select name="status" id="status" class="form-select">
-                                <option value="new" {% if feedback.status == 'new' or not feedback.status %}selected{% endif %}>Новое</option>
-                                <option value="in_progress" {% if feedback.status == 'in_progress' %}selected{% endif %}>В работе</option>
-                                <option value="resolved" {% if feedback.status == 'resolved' %}selected{% endif %}>Решено</option>
-                                <option value="closed" {% if feedback.status == 'closed' %}selected{% endif %}>Закрыто</option>
+                                <option value="new" {% if feedback.status == 'NEW' or not feedback.status %}selected{% endif %}>Новое</option>
+                                <option value="in_progress" {% if feedback.status == 'IN_PROGRESS' %}selected{% endif %}>В работе</option>
+                                <option value="resolved" {% if feedback.status == 'RESOLVED' %}selected{% endif %}>Решено</option>
+                                <option value="closed" {% if feedback.status == 'CLOSED' %}selected{% endif %}>Закрыто</option>
                             </select>
                         </div>
 

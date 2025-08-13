@@ -11,6 +11,7 @@ from app.schemas.mood import Mood as MoodSchema, MoodCreate, Appreciation as App
 from app.services.auth import get_current_user
 from app.core.config import settings
 
+
 router = APIRouter()
 
 
@@ -97,6 +98,9 @@ def get_moods(
     moods = query.order_by(Mood.date.desc()).all()
     
     return moods
+
+
+
 
 
 @router.post("/appreciation", response_model=AppreciationSchema)

@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 import secrets
+import logging
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status, Header
 from sqlalchemy.orm import Session
@@ -10,14 +11,19 @@ from app.schemas.pair import Pair as PairSchema, PairInvite as PairInviteSchema,
 from app.services.auth import get_current_user
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
-@router.post("/invite", response_model=PairInviteSchema)
+@router.post("/invite", response_model=PairInviteSchema, deprecated=True)
 def create_invite(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Создать код-приглашение для партнёра"""
+    """DEPRECATED. Создать код-приглашение для партнёра.
+
+    Используйте флоу приглашений через эндпоинты `invitations.*` и регистрацию с `invite_code`.
+    """
+    logger.warning("DEPRECATED endpoint used: POST /api/v1/pair/invite")
     # Проверяем, что у пользователя нет активной пары
     existing_pair = db.query(Pair).filter(
         (Pair.user1_id == current_user.id) | (Pair.user2_id == current_user.id),
@@ -47,13 +53,17 @@ def create_invite(
     return invite
 
 
-@router.post("/join", response_model=PairSchema)
+@router.post("/join", response_model=PairSchema, deprecated=True)
 def join_pair(
     invite_data: PairInviteCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Присоединиться к паре по коду-приглашению"""
+    """DEPRECATED. Присоединиться к паре по коду-приглашению.
+
+    Используйте флоу приглашений через эндпоинты `invitations.*` и регистрацию с `invite_code`.
+    """
+    logger.warning("DEPRECATED endpoint used: POST /api/v1/pair/join")
     # Находим приглашение
     invite = db.query(PairInvite).filter(
         PairInvite.code == invite_data.code,

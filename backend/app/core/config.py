@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 from pydantic_settings import BaseSettings
 from pydantic import AnyHttpUrl
 
@@ -42,6 +42,9 @@ class Settings(BaseSettings):
     # Optional variables (for compatibility)
     API_BASE_URL: str = "http://localhost:8000"
     VITE_API_BASE_URL: str = "http://localhost:8000"
+
+    # Analytics
+    ANALYTICS_ENABLED: bool = True
     
     class Config:
         env_file = ".env"

@@ -11,6 +11,7 @@ from app.api.api_v1.api import api_router
 from app.core.database import engine
 from app.models import Base
 from app.middleware.security import RateLimitMiddleware, SecurityHeadersMiddleware, TelegramValidationMiddleware, ProxyHeadersMiddleware
+from app.middleware.usage_analytics import UsageAnalyticsMiddleware
 
 # Информация о билде
 BUILD_DATE = os.getenv("BUILD_DATE", "unknown")
@@ -85,6 +86,7 @@ app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(ProxyHeadersMiddleware)  # Первым - для правильного получения IP
 app.add_middleware(RateLimitMiddleware, calls=100, period=60)  # 100 запросов в минуту
 app.add_middleware(TelegramValidationMiddleware)
+app.add_middleware(UsageAnalyticsMiddleware)
 
 # Include API router
 app.include_router(api_router, prefix=settings.API_V1_STR)
@@ -96,6 +98,7 @@ async def startup_event():
     logger.info(f"📦 Build ID: {BUILD_ID}")
     logger.info(f"📅 Build Date: {BUILD_DATE}")
     logger.info(f"🏷️  {BUILD_MARKER}")
+    # Аналитика на Postgres не требует специальной инициализации
 
 @app.get("/")
 async def root():

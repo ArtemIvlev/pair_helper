@@ -116,13 +116,13 @@
                                 </div>
                             </td>
                             <td>
-                                {% if item.status == 'new' or not item.status %}
+                                {% if item.status == 'NEW' or not item.status %}
                                     <span class="badge bg-warning">Новое</span>
-                                {% elif item.status == 'in_progress' %}
+                                {% elif item.status == 'IN_PROGRESS' %}
                                     <span class="badge bg-info">В работе</span>
-                                {% elif item.status == 'resolved' %}
+                                {% elif item.status == 'RESOLVED' %}
                                     <span class="badge bg-success">Решено</span>
-                                {% elif item.status == 'closed' %}
+                                {% elif item.status == 'CLOSED' %}
                                     <span class="badge bg-secondary">Закрыто</span>
                                 {% else %}
                                     <span class="badge bg-warning">Новое</span>
