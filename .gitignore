@@ -192,9 +192,4 @@ telegram_bot_token.txt
 *.temp
 
 # Documentation with sensitive info
-docs/env.production.example
-docs/nginx-proxy-config.conf
-docs/BUILD_DEPLOY.md
-docs/DEPLOY.md
-docs/NGINX_SETUP.md
-docs/SECURITY.md
+docs/
