@@ -1,0 +1,120 @@
+{
+  "alert": {
+    "name": "HTTP 500 Errors Alert",
+    "message": "Обнаружены HTTP 500 ошибки в приложении",
+    "execErrState": "KeepLastState",
+    "for": "1m",
+    "frequency": "1m",
+    "handler": 1,
+    "severity": "warning",
+    "conditions": [
+      {
+        "type": "query",
+        "query": {
+          "params": [
+            "A",
+            "5m",
+            "now"
+          ]
+        },
+        "reducer": {
+          "params": [],
+          "type": "avg"
+        },
+        "evaluator": {
+          "params": [
+            1
+          ],
+          "type": "gt"
+        },
+        "operator": {
+          "type": "and"
+        }
+      }
+    ]
+  },
+  "dashboard": {
+    "id": null,
+    "title": "HTTP 500 Errors Dashboard",
+    "tags": ["pair-helper", "monitoring"],
+    "timezone": "browser",
+    "panels": [
+      {
+        "id": 1,
+        "title": "HTTP 500 Errors",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "SELECT COUNT(*) FROM usage_events WHERE status = 500 AND ts >= NOW() - INTERVAL '5 minutes'",
+            "refId": "A",
+            "datasource": {
+              "type": "postgres",
+              "uid": "pair_helper_db"
+            }
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "red",
+                  "value": 1
+                }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 2,
+        "title": "500 Errors by Route",
+        "type": "table",
+        "targets": [
+          {
+            "expr": "SELECT route, COUNT(*) as error_count FROM usage_events WHERE status = 500 AND ts >= NOW() - INTERVAL '1 hour' GROUP BY route ORDER BY error_count DESC LIMIT 10",
+            "refId": "A",
+            "datasource": {
+              "type": "postgres",
+              "uid": "pair_helper_db"
+            }
+          }
+        ]
+      },
+      {
+        "id": 3,
+        "title": "Error Rate Over Time",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "SELECT ts, COUNT(*) FROM usage_events WHERE status = 500 AND ts >= NOW() - INTERVAL '1 hour' GROUP BY ts ORDER BY ts",
+            "refId": "A",
+            "datasource": {
+              "type": "postgres",
+              "uid": "pair_helper_db"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "notifications": [
+    {
+      "uid": "telegram_alert",
+      "name": "Telegram Alert",
+      "type": "telegram",
+      "settings": {
+        "bottoken": "YOUR_BOT_TOKEN",
+        "chatid": "YOUR_CHAT_ID",
+        "message": "🚨 HTTP 500 Errors detected!\n\nRoute: {{ .Route }}\nCount: {{ .Count }}\nTime: {{ .Time }}\n\nCheck logs immediately!"
+      }
+    }
+  ]
+}
