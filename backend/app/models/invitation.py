@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, Boolean, ForeignKey
+from sqlalchemy import Column, Integer, String, DateTime, Boolean, ForeignKey, BigInteger
 from sqlalchemy.orm import relationship
 from datetime import datetime, timedelta
 import secrets
@@ -10,7 +10,7 @@ class Invitation(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     inviter_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    invitee_telegram_id = Column(Integer, nullable=True)  # Заполняется когда приглашенный регистрируется
+    invitee_telegram_id = Column(BigInteger, nullable=True)  # Заполняется когда приглашенный регистрируется
     code = Column(String(32), unique=True, nullable=False, index=True)
     is_used = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
