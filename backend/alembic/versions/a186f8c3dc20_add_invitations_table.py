@@ -21,7 +21,7 @@ def upgrade() -> None:
     op.create_table('invitations',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('inviter_id', sa.Integer(), nullable=False),
-    sa.Column('invitee_telegram_id', sa.Integer(), nullable=True),
+    sa.Column('invitee_telegram_id', sa.BigInteger(), nullable=True),
     sa.Column('code', sa.String(length=32), nullable=False),
     sa.Column('is_used', sa.Boolean(), nullable=True),
     sa.Column('created_at', sa.DateTime(), nullable=True),
