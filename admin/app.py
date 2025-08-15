@@ -253,6 +253,21 @@ class TuneQuizQuestion(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
+class Announcement(db.Model):
+    __tablename__ = 'announcements'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(200), nullable=False)
+    content = db.Column(db.Text, nullable=False)  # HTML контент
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
+    priority = db.Column(db.String(20), default='normal', nullable=False)  # low, normal, high, urgent
+    target_audience = db.Column(db.String(50), default='all', nullable=False)  # all, active_users, new_users, etc.
+    display_settings = db.Column(db.JSON, default={})  # Дополнительные настройки отображения
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    published_at = db.Column(db.DateTime, nullable=True)
+    expires_at = db.Column(db.DateTime, nullable=True)
+
 @app.route('/tune/questions')
 @login_required
 def tune_questions():
@@ -669,6 +684,124 @@ def api_stats():
         'daily_stats': daily_stats
     })
 
+# ===== Обращения от администрации =====
+@app.route('/announcements')
+@login_required
+def announcements():
+    page = request.args.get('page', 1, type=int)
+    status_filter = request.args.get('status', '')
+    
+    query = Announcement.query
+    
+    if status_filter == 'active':
+        query = query.filter(Announcement.is_active == True)
+    elif status_filter == 'inactive':
+        query = query.filter(Announcement.is_active == False)
+    
+    announcements = query.order_by(Announcement.created_at.desc()).paginate(
+        page=page, per_page=20, error_out=False
+    )
+    
+    # Статистика
+    all_announcements = Announcement.query.all()
+    stats = {
+        'total': len(all_announcements),
+        'active': len([a for a in all_announcements if a.is_active]),
+        'inactive': len([a for a in all_announcements if not a.is_active]),
+    }
+    
+    return render_template('announcements.html', 
+                         announcements=announcements, 
+                         stats=stats,
+                         status_filter=status_filter)
+
+@app.route('/announcements/add', methods=['GET', 'POST'])
+@login_required
+def add_announcement():
+    if request.method == 'POST':
+        title = request.form.get('title', '').strip()
+        content = request.form.get('content', '').strip()
+        is_active = request.form.get('is_active') == 'on'
+        priority = request.form.get('priority', 'normal')
+        target_audience = request.form.get('target_audience', 'all')
+        
+        if not title or not content:
+            flash('Заполните заголовок и содержание', 'error')
+            return render_template('announcement_form.html', announcement=None, action='add')
+        
+        announcement = Announcement(
+            title=title,
+            content=content,
+            is_active=is_active,
+            priority=priority,
+            target_audience=target_audience,
+            published_at=datetime.utcnow() if is_active else None
+        )
+        
+        db.session.add(announcement)
+        db.session.commit()
+        flash('Обращение добавлено', 'success')
+        return redirect(url_for('announcements'))
+    
+    return render_template('announcement_form.html', announcement=None, action='add')
+
+@app.route('/announcements/edit/<int:announcement_id>', methods=['GET', 'POST'])
+@login_required
+def edit_announcement(announcement_id):
+    announcement = Announcement.query.get_or_404(announcement_id)
+    
+    if request.method == 'POST':
+        title = request.form.get('title', '').strip()
+        content = request.form.get('content', '').strip()
+        is_active = request.form.get('is_active') == 'on'
+        priority = request.form.get('priority', 'normal')
+        target_audience = request.form.get('target_audience', 'all')
+        
+        if not title or not content:
+            flash('Заполните заголовок и содержание', 'error')
+            return render_template('announcement_form.html', announcement=announcement, action='edit')
+        
+        announcement.title = title
+        announcement.content = content
+        announcement.is_active = is_active
+        announcement.priority = priority
+        announcement.target_audience = target_audience
+        
+        # Обновляем published_at при активации
+        if is_active and not announcement.published_at:
+            announcement.published_at = datetime.utcnow()
+        
+        db.session.commit()
+        flash('Обращение обновлено', 'success')
+        return redirect(url_for('announcements'))
+    
+    return render_template('announcement_form.html', announcement=announcement, action='edit')
+
+@app.route('/announcements/delete/<int:announcement_id>', methods=['POST'])
+@login_required
+def delete_announcement(announcement_id):
+    announcement = Announcement.query.get_or_404(announcement_id)
+    db.session.delete(announcement)
+    db.session.commit()
+    
+    flash('Обращение удалено', 'success')
+    return redirect(url_for('announcements'))
+
+@app.route('/announcements/toggle/<int:announcement_id>', methods=['POST'])
+@login_required
+def toggle_announcement(announcement_id):
+    announcement = Announcement.query.get_or_404(announcement_id)
+    announcement.is_active = not announcement.is_active
+    
+    if announcement.is_active and not announcement.published_at:
+        announcement.published_at = datetime.utcnow()
+    
+    db.session.commit()
+    
+    status = 'активировано' if announcement.is_active else 'деактивировано'
+    flash(f'Обращение {status}', 'success')
+    return redirect(url_for('announcements'))
+
 if __name__ == '__main__':
     with app.app_context():
         # Удаляем только таблицы админки
@@ -684,6 +817,7 @@ if __name__ == '__main__':
         Question.__table__.create(db.engine, checkfirst=True)
         Feedback.__table__.create(db.engine, checkfirst=True)
         TuneQuizQuestion.__table__.create(db.engine, checkfirst=True)
+        Announcement.__table__.create(db.engine, checkfirst=True)
 
         # Обновление схемы для tune_quiz_questions — добавляем недостающие колонки (PostgreSQL)
         try:

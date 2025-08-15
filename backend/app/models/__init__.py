@@ -11,6 +11,9 @@ from .invitation import Invitation
 from .feedback import Feedback, FeedbackType, FeedbackStatus
 from .tune import PairDailyTuneQuestion, TuneAnswer, TuneQuizQuestion, TuneQuestionType, TuneNotification
 from .analytics import UsageEvent
+from .notification import Notification
+from .announcement import Announcement
+from .gpt_task import GPTTask, TaskStatus, TaskType
 
 __all__ = [
     "Base",
@@ -41,5 +44,10 @@ __all__ = [
     "TuneQuizQuestion",
     "TuneQuestionType",
     "TuneNotification",
-    "UsageEvent"
+    "UsageEvent",
+    "Notification",
+    "Announcement",
+    "GPTTask",
+    "TaskStatus",
+    "TaskType"
 ]

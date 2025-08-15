@@ -10,8 +10,12 @@ from app.core.config import settings
 from app.api.api_v1.api import api_router
 from app.core.database import engine
 from app.models import Base
-from app.middleware.security import RateLimitMiddleware, SecurityHeadersMiddleware, TelegramValidationMiddleware, ProxyHeadersMiddleware
+from app.middleware.security import RateLimitMiddleware, SecurityHeadersMiddleware, TelegramValidationMiddleware, ProxyHeadersMiddleware, TelegramIdMiddleware
 from app.middleware.usage_analytics import UsageAnalyticsMiddleware
+from app.middleware.internal_api import InternalAPIMiddleware
+from app.notifications import rules as _notification_rules  # noqa: F401
+from app.notifications.engine import NotificationEngine
+from app.services.scheduler import scheduler
 
 # Информация о билде
 BUILD_DATE = os.getenv("BUILD_DATE", "unknown")
@@ -84,9 +88,11 @@ app.add_middleware(
 # Security middlewares (порядок важен!)
 app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(ProxyHeadersMiddleware)  # Первым - для правильного получения IP
+app.add_middleware(InternalAPIMiddleware)  # Защита внутренних API
 app.add_middleware(RateLimitMiddleware, calls=100, period=60)  # 100 запросов в минуту
 app.add_middleware(TelegramValidationMiddleware)
-app.add_middleware(UsageAnalyticsMiddleware)
+app.add_middleware(UsageAnalyticsMiddleware)  # Должен быть после TelegramIdMiddleware
+app.add_middleware(TelegramIdMiddleware)  # Устанавливает telegram_id в request.state (выполняется первым)
 
 # Include API router
 app.include_router(api_router, prefix=settings.API_V1_STR)
@@ -94,11 +100,56 @@ app.include_router(api_router, prefix=settings.API_V1_STR)
 @app.on_event("startup")
 async def startup_event():
     """Событие при запуске приложения"""
+    from datetime import datetime, timezone
+    from app.notifications.base import iter_rules
+    
     logger.info(f"🚀 Пульс ваших отношений Backend запущен!")
     logger.info(f"📦 Build ID: {BUILD_ID}")
     logger.info(f"📅 Build Date: {BUILD_DATE}")
     logger.info(f"🏷️  {BUILD_MARKER}")
+    
+    # Логирование текущего времени
+    now_utc = datetime.now(timezone.utc)
+    now_msk = now_utc.astimezone()
+    logger.info(f"🕐 Текущее время:")
+    logger.info(f"   UTC: {now_utc.strftime('%Y-%m-%d %H:%M:%S')}")
+    logger.info(f"   MSK: {now_msk.strftime('%Y-%m-%d %H:%M:%S')}")
+    
+    # Логирование расписания уведомлений
+    logger.info(f"📅 Расписание уведомлений:")
+    scheduled_rules = list(iter_rules("schedule"))
+    for rule in scheduled_rules:
+        utc_time = rule.trigger.cron
+        # Парсим cron для получения времени
+        parts = utc_time.split()
+        if len(parts) >= 2:
+            minute, hour = parts[0], parts[1]
+            if hour != "*":
+                hour_utc = int(hour)
+                hour_msk = hour_utc + 3  # MSK = UTC + 3
+                logger.info(f"   {rule.id}: {hour_msk:02d}:{minute} MSK ({hour_utc:02d}:{minute} UTC)")
+            else:
+                logger.info(f"   {rule.id}: {utc_time} (каждый час)")
+        else:
+            logger.info(f"   {rule.id}: {utc_time}")
+    
+    logger.info(f"⏰ Планировщик запускается каждый час в :00 (03:00 MSK)")
+    
     # Аналитика на Postgres не требует специальной инициализации
+    
+    # Инициализация движка уведомлений (правила регистрируются при импорте)
+    app.state.notification_engine = NotificationEngine()
+    
+    # Запуск планировщика уведомлений
+    scheduler.start(app.state.notification_engine)
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Событие при завершении работы приложения"""
+    logger.info("🛑 Завершение работы приложения...")
+    scheduler.stop()
+
 
 @app.get("/")
 async def root():

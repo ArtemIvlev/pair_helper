@@ -126,7 +126,20 @@ const InvitePartner: React.FC<InvitePartnerProps> = ({ user }) => {
   // Если пара уже существует, показываем информацию о партнере
   if (pair) {
     const partner = pair.user1_id === user.id ? pair.user2 : pair.user1
-    const pairCreatedDate = new Date(pair.created_at).toLocaleDateString('ru-RU')
+    
+    // Вычисляем количество дней в приложении
+    const pairCreatedDate = new Date(pair.created_at)
+    const today = new Date()
+    const diffTime = Math.abs(today.getTime() - pairCreatedDate.getTime())
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+    
+    // Формируем текст с правильным склонением
+    let daysText = 'дней'
+    if (diffDays === 1) {
+      daysText = 'день'
+    } else if (diffDays >= 2 && diffDays <= 4) {
+      daysText = 'дня'
+    }
 
     return (
       <div className="invite-partner">
@@ -135,14 +148,9 @@ const InvitePartner: React.FC<InvitePartnerProps> = ({ user }) => {
           <div className="pair-info">
             <div className="partner-details">
               <h4>Партнер: {partner?.first_name || 'Неизвестно'}</h4>
-              <p>Пара создана: {pairCreatedDate}</p>
-            </div>
-            
-            <div className="pair-status">
-              <span className="status-badge">✅ Активна</span>
+              <p>В приложении уже {diffDays} {daysText}</p>
             </div>
           </div>
-          
         </div>
       </div>
     )

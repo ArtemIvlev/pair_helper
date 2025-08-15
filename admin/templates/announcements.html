@@ -1,0 +1,223 @@
+{% extends "base.html" %}
+
+{% block title %}Обращения от администрации{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0">Обращения от администрации</h1>
+        <a href="{{ url_for('add_announcement') }}" class="btn btn-primary">
+            <i class="fas fa-plus"></i> Добавить обращение
+        </a>
+    </div>
+
+    <!-- Статистика -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title">{{ stats.total }}</h4>
+                            <p class="card-text">Всего обращений</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-bullhorn fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title">{{ stats.active }}</h4>
+                            <p class="card-text">Активные</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-check-circle fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title">{{ stats.inactive }}</h4>
+                            <p class="card-text">Неактивные</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-pause-circle fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Фильтры -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="GET" class="row g-3">
+                <div class="col-md-3">
+                    <label for="status" class="form-label">Статус</label>
+                    <select name="status" id="status" class="form-select">
+                        <option value="">Все</option>
+                        <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Активные</option>
+                        <option value="inactive" {% if status_filter == 'inactive' %}selected{% endif %}>Неактивные</option>
+                    </select>
+                </div>
+                <div class="col-md-3 d-flex align-items-end">
+                    <button type="submit" class="btn btn-outline-primary me-2">Фильтровать</button>
+                    <a href="{{ url_for('announcements') }}" class="btn btn-outline-secondary">Сбросить</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Список обращений -->
+    <div class="card">
+        <div class="card-body">
+            {% if announcements.items %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Заголовок</th>
+                            <th>Приоритет</th>
+                            <th>Целевая аудитория</th>
+                            <th>Статус</th>
+                            <th>Создано</th>
+                            <th>Действия</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for announcement in announcements.items %}
+                        <tr>
+                            <td>{{ announcement.id }}</td>
+                            <td>
+                                <strong>{{ announcement.title }}</strong>
+                                <br>
+                                <small class="text-muted">{{ announcement.content[:100] }}{% if announcement.content|length > 100 %}...{% endif %}</small>
+                            </td>
+                            <td>
+                                {% if announcement.priority == 'urgent' %}
+                                    <span class="badge bg-danger">Срочно</span>
+                                {% elif announcement.priority == 'high' %}
+                                    <span class="badge bg-warning">Высокий</span>
+                                {% elif announcement.priority == 'normal' %}
+                                    <span class="badge bg-info">Обычный</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">Низкий</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if announcement.target_audience == 'all' %}
+                                    <span class="badge bg-primary">Все пользователи</span>
+                                {% elif announcement.target_audience == 'active_users' %}
+                                    <span class="badge bg-success">Активные пользователи</span>
+                                {% elif announcement.target_audience == 'new_users' %}
+                                    <span class="badge bg-info">Новые пользователи</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">{{ announcement.target_audience }}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if announcement.is_active %}
+                                    <span class="badge bg-success">Активно</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">Неактивно</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {{ announcement.created_at.strftime('%d.%m.%Y %H:%M') }}
+                                {% if announcement.published_at %}
+                                    <br>
+                                    <small class="text-muted">Опубликовано: {{ announcement.published_at.strftime('%d.%m.%Y %H:%M') }}</small>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="btn-group" role="group">
+                                    <a href="{{ url_for('edit_announcement', announcement_id=announcement.id) }}" 
+                                       class="btn btn-sm btn-outline-primary" title="Редактировать">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    <form method="POST" action="{{ url_for('toggle_announcement', announcement_id=announcement.id) }}" 
+                                          style="display: inline;" onsubmit="return confirm('Изменить статус обращения?')">
+                                        <button type="submit" class="btn btn-sm btn-outline-{% if announcement.is_active %}warning{% else %}success{% endif %}" 
+                                                title="{% if announcement.is_active %}Деактивировать{% else %}Активировать{% endif %}">
+                                            <i class="fas fa-{% if announcement.is_active %}pause{% else %}play{% endif %}"></i>
+                                        </button>
+                                    </form>
+                                    <form method="POST" action="{{ url_for('delete_announcement', announcement_id=announcement.id) }}" 
+                                          style="display: inline;" onsubmit="return confirm('Удалить обращение?')">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger" title="Удалить">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Пагинация -->
+            {% if announcements.pages > 1 %}
+            <nav aria-label="Навигация по страницам">
+                <ul class="pagination justify-content-center">
+                    {% if announcements.has_prev %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('announcements', page=announcements.prev_num, status=status_filter) }}">Предыдущая</a>
+                        </li>
+                    {% endif %}
+                    
+                    {% for page_num in announcements.iter_pages() %}
+                        {% if page_num %}
+                            {% if page_num != announcements.page %}
+                                <li class="page-item">
+                                    <a class="page-link" href="{{ url_for('announcements', page=page_num, status=status_filter) }}">{{ page_num }}</a>
+                                </li>
+                            {% else %}
+                                <li class="page-item active">
+                                    <span class="page-link">{{ page_num }}</span>
+                                </li>
+                            {% endif %}
+                        {% else %}
+                            <li class="page-item disabled">
+                                <span class="page-link">...</span>
+                            </li>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% if announcements.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('announcements', page=announcements.next_num, status=status_filter) }}">Следующая</a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            {% endif %}
+            {% else %}
+            <div class="text-center py-5">
+                <i class="fas fa-bullhorn fa-3x text-muted mb-3"></i>
+                <h4 class="text-muted">Обращений пока нет</h4>
+                <p class="text-muted">Создайте первое обращение от администрации</p>
+                <a href="{{ url_for('add_announcement') }}" class="btn btn-primary">
+                    <i class="fas fa-plus"></i> Добавить обращение
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+

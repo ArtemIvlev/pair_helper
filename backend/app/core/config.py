@@ -46,6 +46,9 @@ class Settings(BaseSettings):
     # Analytics
     ANALYTICS_ENABLED: bool = True
     
+    # Anthropic API
+    ANTHROPIC_API_KEY: Optional[str] = None
+    
     class Config:
         env_file = ".env"
         case_sensitive = True

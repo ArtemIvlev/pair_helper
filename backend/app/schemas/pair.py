@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List
 from pydantic import BaseModel
 
 from app.models.pair import PairStatus, InviteStatus
@@ -40,6 +40,33 @@ class PairInviteCreate(BaseModel):
 class PairInvite(PairInviteBase):
     id: int
     created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class PairActivityItem(BaseModel):
+    """Элемент активности пары"""
+    date: str
+    type: str  # mood, appreciation, ritual, calendar, emotion_note, question, tune
+    title: str
+    description: str
+    user_name: str
+    timestamp: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class PairWeeklyActivity(BaseModel):
+    """Активность пары за неделю в человекочитаемом формате"""
+    pair_id: int
+    user1_name: str
+    user2_name: str
+    week_start: str
+    week_end: str
+    activities: List[PairActivityItem]
+    summary: str
 
     class Config:
         from_attributes = True

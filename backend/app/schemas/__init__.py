@@ -7,3 +7,10 @@ from .question import (
     PairAnswersResponse,
     QuestionsStatsResponse
 )
+
+from .announcement import (
+    Announcement,
+    AnnouncementCreate,
+    AnnouncementUpdate,
+    AnnouncementList
+)

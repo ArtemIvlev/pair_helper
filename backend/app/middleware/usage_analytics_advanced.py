@@ -175,3 +175,4 @@ def get_queue_stats() -> Dict[str, Any]:
 			'queue_size': len(_event_queue),
 			'max_size': _event_queue.maxlen
 		}
+

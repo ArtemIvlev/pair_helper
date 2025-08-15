@@ -17,6 +17,7 @@ from app.schemas.question import (
     PairAnswersResponse
 )
 from app.core.config import settings
+from app.services.notifications import NotificationService
 
 router = APIRouter()
 
@@ -255,7 +256,7 @@ async def get_questions_history(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """История: только вопросы, на которые текущий пользователь уже ответил (по ТЗ)."""
+    """История: только вопросы, на которые текущий пользователь уже ответил, отсортированные по дате ответа (от самого недавнего)."""
     
     # Получаем пару пользователя
     user_pair = db.query(Pair).filter(
@@ -271,8 +272,14 @@ async def get_questions_history(
     partner_id = user_pair.user2_id if user_pair.user1_id == current_user.id else user_pair.user1_id
     
     # Только те вопросы, на которые ответил текущий пользователь
-    answered_ids = db.query(UserAnswer.question_id).filter(UserAnswer.user_id == current_user.id)
-    questions = db.query(Question).filter(Question.id.in_(answered_ids)).order_by(Question.number).offset(skip).limit(limit).all()
+    # Сортируем по дате ответа (от самого недавнего к более старым)
+    answered_questions = db.query(Question, UserAnswer.created_at).join(
+        UserAnswer, Question.id == UserAnswer.question_id
+    ).filter(
+        UserAnswer.user_id == current_user.id
+    ).order_by(UserAnswer.created_at.desc()).offset(skip).limit(limit).all()
+    
+    questions = [item[0] for item in answered_questions]
     
     result = []
     for question in questions:
@@ -413,7 +420,8 @@ async def notify_partner_to_answer(
         return {"ok": True, "message": "Партнёр уже ответил"}
 
     # Проверяем, не отправляли ли мы уже уведомление за последний час
-    one_hour_ago = datetime.utcnow() - timedelta(hours=1)
+    from datetime import timezone
+    one_hour_ago = datetime.now(timezone.utc) - timedelta(hours=1)
     recent_notification = db.query(QuestionNotification).filter(
         QuestionNotification.pair_id == user_pair.id,
         QuestionNotification.question_id == question.id,
@@ -423,7 +431,7 @@ async def notify_partner_to_answer(
     ).first()
     
     if recent_notification:
-        time_diff = datetime.utcnow() - recent_notification.sent_at
+        time_diff = datetime.now(timezone.utc) - recent_notification.sent_at
         minutes_left = 60 - int(time_diff.total_seconds() / 60)
         raise HTTPException(
             status_code=429, 
@@ -431,47 +439,34 @@ async def notify_partner_to_answer(
         )
 
     # Отправка сообщения через Telegram Bot API
-    bot_token = settings.TELEGRAM_BOT_TOKEN
-    if not bot_token:
-        raise HTTPException(status_code=500, detail="Bot token не настроен")
-
     # Создаём диплинк на страницу вопросов
     webapp_base_url = settings.TELEGRAM_WEBAPP_URL or "https://gallery.homoludens.photos/pulse_of_pair/"
     webapp_url = f"{webapp_base_url}?tgWebAppStartParam=question_daily"
-    
+
     text = (
         f"Ваш партнёр {current_user.first_name or ''} ответил на вопрос дня.\n"
-                    f"Откройте Пульс ваших отношений и ответьте тоже."
+        f"Откройте Пульс ваших отношений и ответьте тоже."
     ).strip()
 
-    api_url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
     reply_markup = {
         "inline_keyboard": [[
             {"text": "Ответить на вопрос", "web_app": {"url": webapp_url}}
         ]]
     }
 
-    try:
-        async with httpx.AsyncClient(timeout=10) as client:
-            resp = await client.post(api_url, json={
-                "chat_id": partner.telegram_id,
-                "text": text,
-                "reply_markup": reply_markup
-            })
-            if resp.status_code != 200:
-                # Фолбэк: обычная URL кнопка
-                fallback = {
-                    "inline_keyboard": [[
-                        {"text": "Ответить на вопрос", "url": webapp_url}
-                    ]]
-                }
-                await client.post(api_url, json={
-                    "chat_id": partner.telegram_id,
-                    "text": text,
-                    "reply_markup": fallback
-                })
-    except Exception:
-        raise HTTPException(status_code=502, detail="Не удалось отправить уведомление в Telegram")
+    service = NotificationService()
+    await service.send(
+        n_type="question_reminder",
+        recipient=partner,
+        text=text,
+        reply_markup=reply_markup,
+        pair=user_pair,
+        actor=current_user,
+        entity_type="question",
+        entity_id=question.id,
+        date_bucket=None,
+        metadata={"source": "manual_notify"}
+    )
 
     # Сохраняем запись об отправленном уведомлении
     notification_record = QuestionNotification(

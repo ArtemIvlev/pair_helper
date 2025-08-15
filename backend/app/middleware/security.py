@@ -1,11 +1,113 @@
+import hashlib
+import hmac
+import json
 import time
 from typing import Dict, Optional
+from urllib.parse import parse_qsl
 from fastapi import Request, HTTPException, status
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
 import logging
 
+from app.core.config import settings
+
 logger = logging.getLogger(__name__)
+
+
+def verify_telegram_webapp_data(init_data: str) -> dict:
+    """Проверяет подпись данных от Telegram Web App"""
+    try:
+        # Разбираем init_data (URL-decoded пары key=value)
+        pairs = dict(parse_qsl(init_data, keep_blank_values=True))
+        data_dict = dict(pairs)
+        
+        # Проверяем время подписи (не старше 60 минут)
+        auth_date = data_dict.get('auth_date')
+        if auth_date:
+            try:
+                auth_timestamp = int(auth_date)
+                if time.time() - auth_timestamp > 3600:  # 60 минут
+                    raise HTTPException(
+                        status_code=status.HTTP_401_UNAUTHORIZED,
+                        detail="Данные аутентификации устарели"
+                    )
+            except ValueError:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Неверный формат времени аутентификации"
+                )
+        
+        # Убираем hash из данных для проверки
+        data_check_string = '\n'.join(
+            f"{k}={pairs[k]}" for k in sorted(pairs.keys()) if k != 'hash'
+        )
+        
+        # Получаем секретный ключ бота
+        bot_token = settings.TELEGRAM_BOT_TOKEN
+        if not bot_token:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Bot token не настроен"
+            )
+        
+        # Вычисляем секретный ключ
+        secret_key = hmac.new(
+            "WebAppData".encode(),
+            bot_token.encode(),
+            hashlib.sha256
+        ).digest()
+        
+        # Проверяем подпись
+        data_hash = hmac.new(
+            secret_key,
+            data_check_string.encode(),
+            hashlib.sha256
+        ).hexdigest()
+        
+        if data_hash != data_dict.get('hash'):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Неверная подпись данных"
+            )
+        
+        return data_dict
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error verifying Telegram data: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Ошибка проверки данных Telegram"
+        )
+
+
+def extract_telegram_id_from_data(init_data: str) -> Optional[int]:
+    """Извлекает telegram_id из данных Telegram без полной валидации"""
+    try:
+        # Разбираем init_data (URL-decoded пары key=value)
+        pairs = dict(parse_qsl(init_data, keep_blank_values=True))
+        data_dict = dict(pairs)
+        
+        # Получаем user_id из данных (user приходит как JSON-строка)
+        raw_user = data_dict.get('user')
+        user_obj = {}
+        if isinstance(raw_user, str):
+            try:
+                user_obj = json.loads(raw_user)
+            except Exception:
+                user_obj = {}
+        elif isinstance(raw_user, dict):
+            user_obj = raw_user
+
+        user_id = None
+        if isinstance(user_obj, dict):
+            user_id = user_obj.get('id')
+        
+        return user_id
+    except Exception as e:
+        logger.error(f"Error extracting telegram_id: {e}")
+        return None
+
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
     """Middleware для ограничения количества запросов"""
@@ -149,6 +251,35 @@ class TelegramValidationMiddleware(BaseHTTPMiddleware):
                         status_code=status.HTTP_400_BAD_REQUEST,
                         detail="Некорректные данные"
                     )
+        
+        response = await call_next(request)
+        return response
+
+
+class TelegramIdMiddleware(BaseHTTPMiddleware):
+    """Middleware для установки telegram_id в request.state"""
+    
+    async def dispatch(self, request: Request, call_next):
+        # Проверяем только API эндпоинты
+        if request.url.path.startswith("/api/"):
+            # Получаем данные Telegram
+            telegram_data = request.headers.get("X-Telegram-Init-Data")
+            if telegram_data:
+                try:
+                    # Извлекаем telegram_id без полной валидации
+                    telegram_id = extract_telegram_id_from_data(telegram_data)
+                    if telegram_id:
+                        # Устанавливаем telegram_id в request.state
+                        request.state.telegram_id = telegram_id
+                        logger.info(f"✅ TelegramIdMiddleware: Set telegram_id {telegram_id} in request.state for {request.url.path}")
+                    else:
+                        logger.warning(f"⚠️ TelegramIdMiddleware: Failed to extract telegram_id from data: {telegram_data[:100]}...")
+                except Exception as e:
+                    logger.warning(f"❌ TelegramIdMiddleware: Failed to extract telegram_id: {e}")
+            else:
+                logger.debug(f"ℹ️ TelegramIdMiddleware: No X-Telegram-Init-Data header for {request.url.path}")
+        else:
+            logger.debug(f"ℹ️ TelegramIdMiddleware: Skipping non-API path {request.url.path}")
         
         response = await call_next(request)
         return response

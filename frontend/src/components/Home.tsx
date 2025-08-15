@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Heart, MessageCircle } from 'lucide-react'
 import InvitePartner from './InvitePartner'
+import Announcements from './Announcements'
 import { getApiUrl } from '../config'
 
 interface HomeProps {
@@ -95,7 +96,6 @@ const Home: React.FC<HomeProps> = ({ user }) => {
       </div>
       {/* Компонент приглашения партнера */}
       <InvitePartner user={user} />
-
 
       {/* Быстрые действия */}
       <div className="card card-elevated fade-in">
@@ -203,13 +203,8 @@ const Home: React.FC<HomeProps> = ({ user }) => {
         )}
       </div>
 
-      {/* Мотивационное сообщение */}
-      <div className="card fade-in" style={{ textAlign: 'center', background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: 'white' }}>
-        <h3>💕</h3>
-        <p style={{ margin: 0, fontSize: '14px' }}>
-          Каждый день - это новая возможность стать ближе друг к другу
-        </p>
-      </div>
+      {/* Обращения от администрации */}
+      <Announcements />
 
       </div>
     </div>

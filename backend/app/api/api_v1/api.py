@@ -15,8 +15,11 @@ from app.api.api_v1.endpoints import (
     account,
     users,
     invitations,
-    feedback
+    feedback,
+    internal
 )
+from app.gpt import gpt_router
+import app.api.api_v1.endpoints.announcements as announcements
 
 api_router = APIRouter()
 
@@ -35,3 +38,6 @@ api_router.include_router(account.router, prefix="/account", tags=["account"])
 api_router.include_router(users.router, prefix="/users", tags=["users"])
 api_router.include_router(invitations.router, prefix="/invitations", tags=["invitations"])
 api_router.include_router(feedback.router, prefix="/feedback", tags=["feedback"])
+api_router.include_router(announcements.router, prefix="/announcements", tags=["announcements"])
+api_router.include_router(internal.router, prefix="/internal", tags=["internal"])
+api_router.include_router(gpt_router, prefix="/gpt", tags=["gpt"])

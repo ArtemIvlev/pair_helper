@@ -1,0 +1,190 @@
+{% extends "base.html" %}
+
+{% block title %}
+    {% if action == 'add' %}Добавить обращение{% else %}Редактировать обращение{% endif %}
+{% endblock %}
+
+{% block extra_head %}
+<!-- TinyMCE -->
+<script src="https://cdn.tiny.cloud/1/pmp2mit5st3i0dho7achhh3wgxfoj31y91n4flsb3f6kyw4k/tinymce/6/tinymce.min.js" referrerpolicy="origin"></script>
+<script>
+    tinymce.init({
+        selector: '#content',
+        height: 400,
+        plugins: [
+            'advlist', 'autolink', 'lists', 'link', 'image', 'charmap', 'preview',
+            'anchor', 'searchreplace', 'visualblocks', 'code', 'fullscreen',
+            'insertdatetime', 'media', 'table', 'help', 'wordcount'
+        ],
+        toolbar: 'undo redo | formatselect | ' +
+                'bold italic backcolor | alignleft aligncenter ' +
+                'alignright alignjustify | bullist numlist outdent indent | ' +
+                'removeformat | help',
+        content_style: 'body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; font-size: 14px; }',
+        menubar: false,
+        branding: false,
+        promotion: false
+    });
+</script>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0">
+            {% if action == 'add' %}Добавить обращение{% else %}Редактировать обращение{% endif %}
+        </h1>
+        <a href="{{ url_for('announcements') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Назад к списку
+        </a>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-body">
+                    <form method="POST">
+                        <div class="row">
+                            <div class="col-md-8">
+                                <div class="mb-3">
+                                    <label for="title" class="form-label">Заголовок *</label>
+                                    <input type="text" class="form-control" id="title" name="title" 
+                                           value="{{ announcement.title if announcement else '' }}" 
+                                           required maxlength="200">
+                                    <div class="form-text">Краткий заголовок обращения</div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="priority" class="form-label">Приоритет</label>
+                                    <select class="form-select" id="priority" name="priority">
+                                        <option value="low" {% if announcement and announcement.priority == 'low' %}selected{% endif %}>Низкий</option>
+                                        <option value="normal" {% if not announcement or announcement.priority == 'normal' %}selected{% endif %}>Обычный</option>
+                                        <option value="high" {% if announcement and announcement.priority == 'high' %}selected{% endif %}>Высокий</option>
+                                        <option value="urgent" {% if announcement and announcement.priority == 'urgent' %}selected{% endif %}>Срочно</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="target_audience" class="form-label">Целевая аудитория</label>
+                                    <select class="form-select" id="target_audience" name="target_audience">
+                                        <option value="all" {% if not announcement or announcement.target_audience == 'all' %}selected{% endif %}>Все пользователи</option>
+                                        <option value="active_users" {% if announcement and announcement.target_audience == 'active_users' %}selected{% endif %}>Активные пользователи</option>
+                                        <option value="new_users" {% if announcement and announcement.target_audience == 'new_users' %}selected{% endif %}>Новые пользователи</option>
+                                        <option value="premium_users" {% if announcement and announcement.target_audience == 'premium_users' %}selected{% endif %}>Премиум пользователи</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="is_active" name="is_active" 
+                                               {% if not announcement or announcement.is_active %}checked{% endif %}>
+                                        <label class="form-check-label" for="is_active">
+                                            Активно
+                                        </label>
+                                    </div>
+                                    <div class="form-text">Активные обращения будут показываться пользователям</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="content" class="form-label">Содержание *</label>
+                            <textarea class="form-control" id="content" name="content" rows="10" required>
+                                {{ announcement.content if announcement else '' }}
+                            </textarea>
+                            <div class="form-text">Используйте HTML редактор для форматирования текста</div>
+                        </div>
+
+                        <div class="d-flex justify-content-between">
+                            <a href="{{ url_for('announcements') }}" class="btn btn-outline-secondary">
+                                <i class="fas fa-times"></i> Отмена
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> 
+                                {% if action == 'add' %}Создать обращение{% else %}Сохранить изменения{% endif %}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-info-circle"></i> Информация
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <h6>Приоритеты:</h6>
+                        <ul class="list-unstyled">
+                            <li><span class="badge bg-secondary">Низкий</span> - обычные уведомления</li>
+                            <li><span class="badge bg-info">Обычный</span> - стандартные обращения</li>
+                            <li><span class="badge bg-warning">Высокий</span> - важные уведомления</li>
+                            <li><span class="badge bg-danger">Срочно</span> - критически важные</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <h6>Целевая аудитория:</h6>
+                        <ul class="list-unstyled">
+                            <li><span class="badge bg-primary">Все пользователи</span> - показывается всем</li>
+                            <li><span class="badge bg-success">Активные пользователи</span> - только активным</li>
+                            <li><span class="badge bg-info">Новые пользователи</span> - только новым</li>
+                            <li><span class="badge bg-warning">Премиум пользователи</span> - только премиум</li>
+                        </ul>
+                    </div>
+
+                    {% if announcement %}
+                    <div class="mb-3">
+                        <h6>Детали обращения:</h6>
+                        <ul class="list-unstyled">
+                            <li><strong>ID:</strong> {{ announcement.id }}</li>
+                            <li><strong>Создано:</strong> {{ announcement.created_at.strftime('%d.%m.%Y %H:%M') }}</li>
+                            {% if announcement.updated_at %}
+                            <li><strong>Обновлено:</strong> {{ announcement.updated_at.strftime('%d.%m.%Y %H:%M') }}</li>
+                            {% endif %}
+                            {% if announcement.published_at %}
+                            <li><strong>Опубликовано:</strong> {{ announcement.published_at.strftime('%d.%m.%Y %H:%M') }}</li>
+                            {% endif %}
+                        </ul>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-lightbulb"></i> Советы
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <ul class="list-unstyled">
+                        <li class="mb-2">
+                            <i class="fas fa-check text-success"></i> Используйте краткие и понятные заголовки
+                        </li>
+                        <li class="mb-2">
+                            <i class="fas fa-check text-success"></i> Форматируйте текст для лучшей читаемости
+                        </li>
+                        <li class="mb-2">
+                            <i class="fas fa-check text-success"></i> Выбирайте подходящий приоритет
+                        </li>
+                        <li class="mb-2">
+                            <i class="fas fa-check text-success"></i> Указывайте целевую аудиторию
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
