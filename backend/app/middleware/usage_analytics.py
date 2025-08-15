@@ -67,6 +67,10 @@ class UsageAnalyticsMiddleware(BaseHTTPMiddleware):
 		if not settings.ANALYTICS_ENABLED:
 			return await call_next(request)
 
+		# Пропускаем внутренние API - они не нужны для аналитики пользователей
+		if request.url.path.startswith("/api/v1/internal"):
+			return await call_next(request)
+
 		start = time.perf_counter()
 		method = request.method
 		route = request.url.path
